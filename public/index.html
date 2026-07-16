@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es-AR" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="google" content="notranslate">
+  <title>ERP Mantenimiento Local PRO</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
+      <b>Pablo Gonzalez</b>
+      <span>Construcciones</span>
+    </div>
+    <button class="nav active" data-view="dashboard">Dashboard</button>
+    <button class="nav" data-view="clientes">Clientes</button>
+    <button class="nav" data-view="administraciones">Administraciones</button>
+    <button class="nav" data-view="contactos">Contactos</button>
+    <button class="nav" data-view="servicios">Visitas / Emergencias</button>
+    <button class="nav" data-view="presupuestos">Presupuestos</button>
+    <button class="nav" data-view="agenda">Agenda</button>
+    <button class="nav" data-view="facturas">Facturas</button>
+    <button class="nav" data-view="correos">Correos</button>
+    <button class="nav" data-view="gastos">Gastos</button>
+    <button class="nav" data-view="historial">Historial</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p>Clientes particulares, consorcios, unidades, presupuestos, facturas, gastos y agenda.</p>
+      </div>
+      <div class="searchBox">
+        <input id="globalSearch" placeholder="Buscar cliente, consorcio, direccion, unidad, telefono...">
+        <div id="searchResults" class="searchResults"></div>
+      </div>
+    </header>
+
+    <section id="dashboard" class="view active">
+      <div id="dashboardCards" class="cards"></div>
+      <div id="dashboardReport" class="reportPanel"></div>
+    </section>
+
+    <section id="clientes" class="view">
+      <div class="sectionHead">
+        <h2>Clientes y consorcios</h2>
+        <button onclick="openClienteModal()">+ Nuevo cliente</button>
+      </div>
+      <div class="hint">Un cliente puede ser Particular, Empresa o Consorcio. Si es consorcio, desde su ficha podes cargar administrador, propietarios e inquilinos por unidad.</div>
+      <div id="clientesContent"></div>
+    </section>
+
+    <section id="contactos" class="view">
+      <div class="sectionHead">
+        <h2>Contactos por cliente</h2>
+        <button onclick="openClienteModal()">+ Nuevo cliente</button>
+      </div>
+      <div class="hint">Busca un cliente o consorcio para ver todos sus contactos vinculados: administracion, unidades, propietarios, inquilinos y encargado.</div>
+      <div id="contactosContent"></div>
+    </section>
+
+    <section id="administraciones" class="view">
+      <div class="sectionHead">
+        <h2>Administraciones</h2>
+        <button onclick="openAdministracionModal()">+ Nueva administracion</button>
+      </div>
+      <div class="hint">Aca podes ver cada administracion creada, sus datos de contacto y cuantos consorcios tiene vinculados.</div>
+      <div id="administracionesContent"></div>
+    </section>
+
+    <section id="servicios" class="view">
+      <div class="sectionHead">
+        <h2>Visitas y emergencias</h2>
+        <button onclick="openServicioModal()">+ Nueva visita/emergencia</button>
+      </div>
+      <div class="hint">Registra visitas para revisar, emergencias realizadas y cualquier servicio cobrable. La facturacion y el cobro se administran desde el menu Facturas.</div>
+      <div class="tableWrap"><table id="serviciosTable"></table></div>
+    </section>
+
+    <section id="presupuestos" class="view">
+      <div class="sectionHead">
+        <h2>Presupuestos</h2>
+        <button onclick="openPresupuestoModal()">+ Nuevo presupuesto</button>
+      </div>
+      <div class="tableWrap"><table id="presupuestosTable"></table></div>
+    </section>
+
+    <section id="trabajos" class="view">
+      <div class="sectionHead">
+        <h2>Trabajos</h2>
+        <button onclick="openTrabajoModal()">+ Nuevo trabajo</button>
+      </div>
+      <div id="kanban" class="kanban"></div>
+    </section>
+
+    <section id="agenda" class="view">
+      <div class="sectionHead">
+        <h2>Agenda</h2>
+      </div>
+      <div id="calendarWeek" class="agendaBoard"></div>
+    </section>
+
+    <section id="facturas" class="view">
+      <div class="sectionHead">
+        <h2>Facturas</h2>
+        <button onclick="openFacturaModal()">+ Nueva factura</button>
+      </div>
+      <div class="hint">Centraliza facturas de presupuestos y visitas/emergencias. Al marcar una factura como cobrada se genera el cobro automaticamente.</div>
+      <div id="facturasContent"></div>
+    </section>
+
+    <section id="correos" class="view">
+      <div class="sectionHead">
+        <h2>Correos</h2>
+        <button onclick="openCorreoModal()">+ Nuevo correo</button>
+      </div>
+      <div class="hint">Envia presupuestos y facturas con asunto y detalle automatico. Las facturas se adjuntan desde Drive y los presupuestos desde el archivo generado.</div>
+      <div id="correosContent"></div>
+    </section>
+
+    <section id="gastos" class="view">
+      <div class="sectionHead">
+        <h2>Gastos</h2>
+        <button onclick="openGastoModal()">+ Nuevo gasto</button>
+      </div>
+      <div class="tableWrap"><table id="gastosTable"></table></div>
+    </section>
+
+    <section id="historial" class="view">
+      <div class="sectionHead"><h2>Historial por cliente</h2></div>
+      <div class="historialBox">
+        <input id="historialSearch" placeholder="Buscar cliente o consorcio..." oninput="renderHistorialOptions()">
+        <div id="historialOptions"></div>
+        <div id="historialContent"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modalBox">
+      <div class="modalHeader">
+        <h2 id="modalTitle"></h2>
+        <button onclick="closeModal()">x</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "erp-mantenimiento-local-sheets",
+  "version": "0.1.0",
+  "description": "ERP local de mantenimiento con Google Sheets como base de datos",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "pdf-parse": "^2.4.5"
+  }
+}
