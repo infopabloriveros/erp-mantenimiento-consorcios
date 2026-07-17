@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync:supabase": "node scripts/push-local-to-supabase.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
