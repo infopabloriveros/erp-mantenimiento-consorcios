@@ -1044,6 +1044,16 @@ async function uploadGeneratedQuoteToDrive(presupuesto, quoteFile) {
   }
 }
 
+async function setDriveFilePublic(url) {
+  if (!url || !appsScriptUrl || !/^https?:\/\//i.test(url)) return { url };
+  try {
+    return await callAppsScript('setFilePublic', { url });
+  } catch (error) {
+    console.warn('No se pudo hacer publico el archivo de Drive:', error.message);
+    return { url };
+  }
+}
+
 async function saveTrabajo(data) {
   const db = await readDb();
   if (!data.Cliente_ID) throw new Error('Selecciona un cliente.');
@@ -1749,6 +1759,24 @@ app.get('/api/presupuestos/:id/pdf', async (req, res) => {
   }
 });
 
+app.post('/api/presupuestos/:id/public-link', async (req, res) => {
+  try {
+    const db = await readDb();
+    const presupuesto = findById(db, 'Presupuestos', req.params.id);
+    if (!presupuesto) throw new Error('Presupuesto no encontrado.');
+    await ensurePresupuestoPdf(db, presupuesto, true);
+    if (presupuesto.PDF_URL && /^https?:\/\//i.test(presupuesto.PDF_URL)) {
+      const publicFile = await setDriveFilePublic(presupuesto.PDF_URL);
+      presupuesto.PDF_URL = publicFile?.url || presupuesto.PDF_URL;
+    }
+    await writeDb(db);
+    if (!presupuesto.PDF_URL) throw new Error('No se pudo generar el link del presupuesto.');
+    res.json(ok({ url: presupuesto.PDF_URL }));
+  } catch (error) {
+    fail(res, error);
+  }
+});
+
 app.post('/api/trabajos', async (req, res) => {
   try { res.json(ok(await saveTrabajo(req.body))); } catch (error) { fail(res, error); }
 });
@@ -1763,6 +1791,21 @@ app.post('/api/facturas', async (req, res) => {
 
 app.post('/api/facturas/extract', async (req, res) => {
   try { res.json(ok(await extractFacturaPdf(req.body))); } catch (error) { fail(res, error); }
+});
+
+app.post('/api/facturas/:id/public-link', async (req, res) => {
+  try {
+    const db = await readDb();
+    const factura = findById(db, 'Facturas', req.params.id);
+    if (!factura) throw new Error('Factura no encontrada.');
+    if (!factura.Drive_URL) throw new Error('La factura no tiene PDF adjunto en Drive.');
+    const publicFile = await setDriveFilePublic(factura.Drive_URL);
+    factura.Drive_URL = publicFile?.url || factura.Drive_URL;
+    await writeDb(db);
+    res.json(ok({ url: factura.Drive_URL }));
+  } catch (error) {
+    fail(res, error);
+  }
 });
 
 app.post('/api/gastos', async (req, res) => {

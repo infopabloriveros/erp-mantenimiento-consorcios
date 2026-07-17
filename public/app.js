@@ -1133,22 +1133,7 @@ function openWhatsAppPresupuesto(id) {
   const presupuesto = (state.presupuestos || []).find(p => p.ID === id);
   if (!presupuesto) return showToast('No se encontro el presupuesto.');
   const cliente = (state.clientes || []).find(c => c.ID === presupuesto.Cliente_ID);
-  const recipient = whatsappRecipient(cliente, presupuesto);
-  if (!recipient.phone) return showToast('No hay WhatsApp cargado para este cliente o administracion.');
-  const pdfUrl = absoluteUrl(`/api/presupuestos/${presupuesto.ID}/pdf`);
-  const message = [
-    'Hola, te enviamos el presupuesto correspondiente al trabajo solicitado.',
-    '',
-    `Presupuesto: ${presupuesto.ID}`,
-    `Detalle: ${shortText(presupuesto.Detalle_Servicio || '', 420)}`,
-    `Total: ${money(presupuesto.Total || 0)}`,
-    '',
-    `PDF: ${pdfUrl}`,
-    '',
-    'Saludos.',
-    'Pablo Gonzalez Construcciones'
-  ].join('\n');
-  openWhatsApp(recipient.phone, message);
+  openWhatsAppModal('presupuesto', presupuesto, cliente);
 }
 
 function openWhatsAppFactura(id) {
@@ -1156,30 +1141,127 @@ function openWhatsAppFactura(id) {
   if (!factura) return showToast('No se encontro la factura.');
   const presupuesto = (state.presupuestos || []).find(p => p.ID === factura.Presupuesto_ID);
   const cliente = (state.clientes || []).find(c => c.ID === (factura.Cliente_ID || presupuesto?.Cliente_ID));
-  const recipient = whatsappRecipient(cliente, presupuesto);
-  if (!recipient.phone) return showToast('No hay WhatsApp cargado para este cliente o administracion.');
-  const detalle = facturaDetalleCorreo(factura, presupuesto);
-  const message = [
+  openWhatsAppModal('factura', { ...factura, presupuesto }, cliente);
+}
+
+function openWhatsAppModal(tipo, item, cliente) {
+  const presupuesto = tipo === 'presupuesto' ? item : item.presupuesto;
+  const recipients = whatsappRecipients(cliente, presupuesto);
+  if (!recipients.length) return showToast('No hay WhatsApp cargado para este cliente, administracion o contacto.');
+  const title = tipo === 'presupuesto' ? 'Enviar presupuesto por WhatsApp' : 'Enviar factura por WhatsApp';
+  const draft = whatsappDraft(tipo, item, '');
+  openModal(title, `
+    <div class="formGrid">
+      <label>Destinatario
+        <select id="Whatsapp_To">${recipients.map((r, i) => `<option value="${i}">${esc(r.label)} - ${esc(r.phone)}</option>`).join('')}</select>
+      </label>
+      <label>Mensaje
+        <textarea id="Whatsapp_Message" rows="9">${esc(draft)}</textarea>
+      </label>
+    </div>
+    <p class="hint">Al enviar se prepara el link publico de Drive y se abre WhatsApp con el mensaje listo.</p>
+    <div class="modalActions">
+      <button class="primaryBtn" onclick="sendPreparedWhatsApp('${tipo}', '${item.ID}')">Abrir WhatsApp</button>
+      <button class="secondaryBtn" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+}
+
+async function sendPreparedWhatsApp(tipo, id) {
+  const item = tipo === 'presupuesto'
+    ? (state.presupuestos || []).find(p => p.ID === id)
+    : (state.facturas || []).find(f => f.ID === id);
+  if (!item) return showToast('No se encontro el registro.');
+  const presupuesto = tipo === 'presupuesto' ? item : (state.presupuestos || []).find(p => p.ID === item.Presupuesto_ID);
+  const cliente = (state.clientes || []).find(c => c.ID === (item.Cliente_ID || presupuesto?.Cliente_ID));
+  const recipients = whatsappRecipients(cliente, presupuesto);
+  const selectedIndex = Number(document.getElementById('Whatsapp_To')?.value || 0);
+  const recipient = recipients[selectedIndex] || recipients[0];
+  const customMessage = document.getElementById('Whatsapp_Message')?.value || whatsappDraft(tipo, tipo === 'presupuesto' ? item : { ...item, presupuesto }, '');
+  if (!recipient?.phone) return showToast('Selecciona un destinatario con WhatsApp.');
+  let publicUrl = '';
+  try {
+    const result = await api(
+      tipo === 'presupuesto' ? `/api/presupuestos/${id}/public-link` : `/api/facturas/${id}/public-link`,
+      { method: 'POST', body: JSON.stringify({}), loadingMessage: 'Preparando link publico de Drive...' }
+    );
+    publicUrl = result?.url || '';
+    if (tipo === 'presupuesto' && publicUrl) item.PDF_URL = publicUrl;
+    if (tipo === 'factura' && publicUrl) item.Drive_URL = publicUrl;
+  } catch (error) {
+    if (tipo === 'presupuesto') return showError(error);
+    showToast('La factura no tiene link publico; se envia el mensaje sin adjunto.');
+  }
+  const message = [customMessage.trim(), publicUrl ? `PDF: ${publicUrl}` : ''].filter(Boolean).join('\n\n');
+  openWhatsApp(recipient.phone, message);
+  closeModal();
+}
+
+function whatsappRecipients(cliente, presupuesto) {
+  const clienteId = presupuesto?.Cliente_ID || cliente?.ID || '';
+  const consorcioId = presupuesto?.Consorcio_ID || '';
+  const list = [];
+  addWhatsappRecipient(list, 'Contacto del presupuesto', presupuesto?.Contacto_Nombre, presupuesto?.Contacto_Whatsapp);
+  (state.administradores || [])
+    .filter(a => a.Cliente_ID === clienteId || (consorcioId && a.Consorcio_ID === consorcioId))
+    .forEach(a => addWhatsappRecipient(list, 'Administracion', a.Contacto || a.Administracion, a.Whatsapp || a.Telefono));
+  (state.contactos || [])
+    .filter(c => c.Cliente_ID === clienteId || (consorcioId && c.Consorcio_ID === consorcioId))
+    .forEach(c => addWhatsappRecipient(list, c.Rol || 'Contacto', contactNameWithUnit(c.Nombre, c), c.Whatsapp || c.Telefono));
+  (state.unidades || [])
+    .filter(u => u.Cliente_ID === clienteId || (consorcioId && u.Consorcio_ID === consorcioId))
+    .forEach(u => {
+      addWhatsappRecipient(list, 'Propietario', contactNameWithUnit(u.Propietario, u), u.Propietario_Whatsapp || u.Propietario_Tel);
+      addWhatsappRecipient(list, 'Inquilino', contactNameWithUnit(u.Inquilino, u), u.Inquilino_Whatsapp || u.Inquilino_Tel);
+      addWhatsappRecipient(list, 'Encargado', contactNameWithUnit(u.Encargado, u), u.Encargado_Whatsapp || u.Encargado_Tel);
+    });
+  addWhatsappRecipient(list, 'Cliente', cliente?.Nombre, cliente?.Whatsapp || cliente?.Telefono);
+  return list;
+}
+
+function addWhatsappRecipient(list, role, name, phone) {
+  const digits = phoneDigits(phone);
+  if (!digits || list.some(item => phoneDigits(item.phone) === digits)) return;
+  list.push({
+    role: role || 'Contacto',
+    name: name || '',
+    phone,
+    label: [role || 'Contacto', name || 'Sin nombre'].filter(Boolean).join(' - ')
+  });
+}
+
+function contactNameWithUnit(name, row) {
+  const location = [row?.Piso ? `Piso ${row.Piso}` : '', row?.Depto ? `Depto ${row.Depto}` : '', row?.Unidad ? `Unidad ${row.Unidad}` : ''].filter(Boolean).join(' ');
+  return [name, location].filter(Boolean).join(' - ');
+}
+
+function whatsappDraft(tipo, item, pdfUrl = '') {
+  if (tipo === 'presupuesto') {
+    return [
+      'Hola, te enviamos el presupuesto correspondiente al trabajo solicitado.',
+      '',
+      `Presupuesto: ${item.ID}`,
+      `Detalle: ${shortText(item.Detalle_Servicio || '', 420)}`,
+      `Total: ${money(item.Total || 0)}`,
+      pdfUrl ? `PDF: ${pdfUrl}` : '',
+      '',
+      'Saludos.',
+      'Pablo Gonzalez Construcciones'
+    ].filter(line => line !== '').join('\n');
+  }
+  const presupuesto = item.presupuesto || (state.presupuestos || []).find(p => p.ID === item.Presupuesto_ID);
+  const detalle = facturaDetalleCorreo(item, presupuesto);
+  return [
     'Hola, te enviamos la factura correspondiente al trabajo realizado.',
     '',
-    `Factura: ${factura.Factura_Nro || factura.ID}`,
-    `Detalle: ${shortText(detalle || factura.Concepto || '', 420)}`,
-    `Total de la factura: ${money(factura.Importe || 0)}`,
-    factura.Drive_URL ? `PDF: ${factura.Drive_URL}` : '',
+    `Factura: ${item.Factura_Nro || item.ID}`,
+    `Detalle: ${shortText(detalle || item.Concepto || '', 420)}`,
+    `Total de la factura: ${money(item.Importe || 0)}`,
+    pdfUrl ? `PDF: ${pdfUrl}` : '',
     '',
     'Saludos.',
     'Pablo Gonzalez Construcciones'
   ].filter(line => line !== '').join('\n');
-  openWhatsApp(recipient.phone, message);
-}
-
-function whatsappRecipient(cliente, presupuesto) {
-  const clienteId = presupuesto?.Cliente_ID || cliente?.ID || '';
-  const admin = (state.administradores || []).find(a => a.Cliente_ID === clienteId && (a.Whatsapp || a.Telefono));
-  return {
-    phone: presupuesto?.Contacto_Whatsapp || admin?.Whatsapp || admin?.Telefono || cliente?.Whatsapp || cliente?.Telefono || '',
-    name: presupuesto?.Contacto_Nombre || admin?.Contacto || admin?.Administracion || cliente?.Nombre || ''
-  };
 }
 
 function openWhatsApp(phone, message) {

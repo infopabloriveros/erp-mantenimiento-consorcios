@@ -41,6 +41,7 @@ function doPost(e) {
       return json_({ ok: true, data: { saved: true } });
     }
     if (body.action === 'uploadFile') return json_({ ok: true, data: uploadFile_(body.file || {}) });
+    if (body.action === 'setFilePublic') return json_({ ok: true, data: setFilePublic_(body.url || body.driveUrl || '') });
     if (body.action === 'sendEmail') return json_({ ok: true, data: sendEmail_(body.email || {}) });
     if (body.action === 'setup') return json_({ ok: true, data: { tables: Object.keys(TABLES) } });
 
@@ -132,10 +133,23 @@ function uploadFile_(file) {
   const name = sanitizeFileName_([context, file.filename || 'factura'].filter(Boolean).join(' - '));
   const blob = Utilities.newBlob(Utilities.base64Decode(file.base64), file.mimeType || 'application/octet-stream', name);
   const created = folder.createFile(blob);
+  created.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return {
     id: created.getId(),
     name: created.getName(),
     url: created.getUrl()
+  };
+}
+
+function setFilePublic_(url) {
+  const id = extractDriveId_(url);
+  if (!id) throw new Error('No se pudo leer el archivo de Drive.');
+  const file = DriveApp.getFileById(id);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return {
+    id: file.getId(),
+    name: file.getName(),
+    url: file.getUrl()
   };
 }
 
