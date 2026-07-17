@@ -1179,6 +1179,10 @@ async function sendPreparedWhatsApp(tipo, id) {
   const recipient = recipients[selectedIndex] || recipients[0];
   const customMessage = document.getElementById('Whatsapp_Message')?.value || whatsappDraft(tipo, tipo === 'presupuesto' ? item : { ...item, presupuesto }, '');
   if (!recipient?.phone) return showToast('Selecciona un destinatario con WhatsApp.');
+  const whatsappWindow = window.open('about:blank', '_blank');
+  if (whatsappWindow) {
+    whatsappWindow.document.write('<p style="font-family:Arial,sans-serif;padding:24px">Preparando WhatsApp...</p>');
+  }
   let publicUrl = '';
   try {
     const result = await api(
@@ -1193,7 +1197,7 @@ async function sendPreparedWhatsApp(tipo, id) {
     showToast('La factura no tiene link publico; se envia el mensaje sin adjunto.');
   }
   const message = [customMessage.trim(), publicUrl ? `PDF: ${publicUrl}` : ''].filter(Boolean).join('\n\n');
-  openWhatsApp(recipient.phone, message);
+  openWhatsApp(recipient.phone, message, whatsappWindow);
   closeModal();
 }
 
@@ -1220,8 +1224,8 @@ function whatsappRecipients(cliente, presupuesto) {
 }
 
 function addWhatsappRecipient(list, role, name, phone) {
-  const digits = phoneDigits(phone);
-  if (!digits || list.some(item => phoneDigits(item.phone) === digits)) return;
+  const digits = whatsappDigits(phone);
+  if (!digits || list.some(item => whatsappDigits(item.phone) === digits)) return;
   list.push({
     role: role || 'Contacto',
     name: name || '',
@@ -1264,11 +1268,15 @@ function whatsappDraft(tipo, item, pdfUrl = '') {
   ].filter(line => line !== '').join('\n');
 }
 
-function openWhatsApp(phone, message) {
-  const digits = phoneDigits(phone);
-  if (!digits) return showToast('El numero de WhatsApp no es valido.');
+function openWhatsApp(phone, message, targetWindow = null) {
+  const digits = whatsappDigits(phone);
+  if (!digits) {
+    if (targetWindow) targetWindow.close();
+    return showToast('El numero de WhatsApp no es valido.');
+  }
   const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank');
+  if (targetWindow) targetWindow.location.href = url;
+  else window.open(url, '_blank');
   showToast('WhatsApp abierto con el mensaje preparado.');
 }
 
@@ -2460,9 +2468,26 @@ function money(n) { return '$ ' + Number(n || 0).toLocaleString('es-AR'); }
 function shortText(value, max) { const text = String(value || '').replace(/\s+/g, ' ').trim(); return text.length > max ? text.slice(0, max - 1) + '...' : text; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 function phoneDigits(n) { return String(n || '').replace(/\D/g, ''); }
+function whatsappDigits(n) {
+  let digits = phoneDigits(n);
+  if (!digits) return '';
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  if (digits.startsWith('549')) return digits;
+  if (digits.startsWith('9') && digits.length === 11) return `54${digits}`;
+  if (digits.startsWith('54')) {
+    const national = digits.slice(2).replace(/^0/, '').replace(/^15/, '');
+    return `549${national}`;
+  }
+  if (digits.length === 10 && digits.startsWith('15')) return `54911${digits.slice(2)}`;
+  if (digits.length === 10 && digits.startsWith('11')) return `549${digits}`;
+  if (digits.length === 8 && !digits.startsWith('11')) return `54911${digits}`;
+  if (digits.length >= 10 && digits.length <= 11) return `549${digits.replace(/^0/, '').replace(/^15/, '')}`;
+  return digits;
+}
 function phoneHref(n) { const p = phoneDigits(n); return p ? `+${p}` : ''; }
 function phoneLink(n) { return n ? `<a class="tableContactLink" href="tel:${esc(phoneHref(n))}">${esc(n)}</a>` : ''; }
-function wa(n) { const p = phoneDigits(n); return p ? `<a class="link" target="_blank" href="https://wa.me/${p}">${esc(n)}</a>` : ''; }
+function wa(n) { const p = whatsappDigits(n); return p ? `<a class="link" target="_blank" href="https://wa.me/${p}">${esc(n)}</a>` : ''; }
 function mail(e) { return e ? `<a class="link" href="mailto:${esc(e)}">${esc(e)}</a>` : ''; }
 function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
 function toInputDate(d) { if (!d) return ''; const date = new Date(d); if (isNaN(date)) return d; return date.toISOString().slice(0, 10); }
