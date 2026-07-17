@@ -1094,7 +1094,7 @@ function correoDraft(tipo, presupuestoId, facturaId) {
     : tipo === 'Factura saldo final' ? 'factura de saldo final'
     : tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
-  const detalleFactura = factura?.Concepto || presupuesto?.Detalle_Servicio || '';
+  const detalleFactura = facturaDetalleCorreo(factura, presupuesto);
   return {
     to,
     subject: `${tipo} ${factura?.Factura_Nro || factura?.ID || ''} - ${name}`.trim(),
@@ -1102,6 +1102,21 @@ function correoDraft(tipo, presupuestoId, facturaId) {
     includeBudget: ['Factura adelanto', 'Factura cuota'].includes(tipo) && !!presupuesto,
     includeBalance: false
   };
+}
+
+function facturaDetalleCorreo(factura, presupuesto) {
+  if (!factura) return presupuesto?.Detalle_Servicio || '';
+  const servicio = (state.servicios || []).find(s => s.ID === factura.Servicio_ID);
+  const trabajo = (state.trabajos || []).find(t => t.ID === factura.Trabajo_ID);
+  const linkedPresupuesto = presupuesto || (state.presupuestos || []).find(p => p.ID === factura.Presupuesto_ID);
+  if (servicio) return [servicio.Tipo, servicio.Titulo, servicio.Detalle].filter(Boolean).join(' - ');
+  if (linkedPresupuesto?.Detalle_Servicio) return linkedPresupuesto.Detalle_Servicio;
+  if (trabajo) return [trabajo.Titulo, trabajo.Observaciones].filter(Boolean).join(' - ');
+  return isGenericInvoiceConcept(factura.Concepto) ? '' : factura.Concepto || '';
+}
+
+function isGenericInvoiceConcept(value) {
+  return ['pago parcial', 'factura', ''].includes(String(value || '').trim().toLowerCase());
 }
 
 function correoRecipient(cliente, presupuesto) {

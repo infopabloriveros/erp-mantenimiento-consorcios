@@ -1503,6 +1503,25 @@ function presupuestoBillingServer(db, presupuesto) {
   return { total, facturado, saldo: Math.max(total - facturado, 0) };
 }
 
+function isGenericInvoiceConcept(value) {
+  return ['pago parcial', 'factura', ''].includes(String(value || '').trim().toLowerCase());
+}
+
+function facturaWorkDetail(db, factura, presupuesto) {
+  if (!factura) return '';
+  const servicio = factura.Servicio_ID ? findById(db, 'Servicios', factura.Servicio_ID) : null;
+  const trabajo = factura.Trabajo_ID ? findById(db, 'Trabajos', factura.Trabajo_ID) : null;
+  const linkedPresupuesto = presupuesto || (factura.Presupuesto_ID ? findById(db, 'Presupuestos', factura.Presupuesto_ID) : null);
+  if (servicio) {
+    return [servicio.Tipo, servicio.Titulo, servicio.Detalle].filter(Boolean).join(' - ');
+  }
+  if (linkedPresupuesto?.Detalle_Servicio) return linkedPresupuesto.Detalle_Servicio;
+  if (trabajo) {
+    return [trabajo.Titulo, trabajo.Observaciones].filter(Boolean).join(' - ');
+  }
+  return isGenericInvoiceConcept(factura.Concepto) ? '' : factura.Concepto || '';
+}
+
 function emailBody(tipo, item, cliente, extra = {}) {
   const saludo = 'Estimado/a:';
   const firma = 'Saludos.\nPablo Gonzalez Construcciones';
@@ -1515,7 +1534,7 @@ function emailBody(tipo, item, cliente, extra = {}) {
     : tipo === 'Factura saldo final' ? 'factura de saldo final'
     : tipo === 'Factura final de trabajo' || tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
-  const detalle = cleanEmailText(item.Concepto || extra.facturaDetalle || extra.detalle || '');
+  const detalle = cleanEmailText(extra.facturaDetalle || (!isGenericInvoiceConcept(item.Concepto) ? item.Concepto : '') || extra.detalle || '');
   return `${saludo}\n\nAdjuntamos ${label} ${item.Factura_Nro || item.ID} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalle}\nTotal de la factura: ${money(item.Importe || 0)}\n\n${firma}`;
 }
 
@@ -1550,7 +1569,8 @@ async function sendBusinessEmail(data) {
     attachments.push({ driveUrl: factura.Drive_URL });
   }
 
-  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, destinatario: recipient.name }));
+  const facturaDetalle = facturaWorkDetail(db, factura, presupuesto);
+  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, facturaDetalle, destinatario: recipient.name }));
   const email = {
     to: data.Para || recipient.email || '',
     cc: data.CC || '',
