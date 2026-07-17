@@ -8,6 +8,7 @@ const { execFileSync } = require('child_process');
 const { pathToFileURL } = require('url');
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
+const PDFDocument = require('pdfkit');
 const { TABLES, PREFIX } = require('./src/backend/models/schema');
 
 const app = express();
@@ -818,7 +819,7 @@ async function savePresupuesto(data) {
     Observaciones: data.Observaciones || '',
     Fecha_Creacion: now()
   };
-  const quoteFile = createQuoteHtml(row, cfg);
+  const quoteFile = await createQuoteHtml(row, cfg);
   row.PDF_URL = quoteFile.url;
   row.Archivo_Local = quoteFile.file;
   const driveQuote = await uploadGeneratedQuoteToDrive(row, quoteFile);
@@ -894,7 +895,86 @@ function imageToDataUri(src) {
   return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
 }
 
-function createQuoteHtml(presupuesto, cfg) {
+function resolveLocalAsset(src) {
+  if (!src || /^data:/i.test(src) || /^https?:\/\//i.test(src)) return '';
+  const relative = String(src).replace(/^\/+/, '');
+  const file = path.isAbsolute(src) && !String(src).startsWith('/') ? src : path.join(root, 'public', relative);
+  return fs.existsSync(file) ? file : '';
+}
+
+function addPdfField(doc, label, value, x, y, width) {
+  doc.fontSize(7).fillColor('#64748b').font('Helvetica-Bold').text(label.toUpperCase(), x, y, { width });
+  doc.fontSize(9).fillColor('#111827').font('Helvetica').text(String(value || '-'), x, y + 11, { width });
+}
+
+async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
+  return new Promise(resolve => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 42, info: { Title: presupuesto.ID || 'Presupuesto' } });
+      const stream = fs.createWriteStream(pdfFile);
+      stream.on('finish', () => resolve(fs.existsSync(pdfFile)));
+      stream.on('error', () => resolve(false));
+      doc.on('error', () => resolve(false));
+      doc.pipe(stream);
+
+      const pageWidth = doc.page.width;
+      const contentWidth = pageWidth - 84;
+      const logoFile = resolveLocalAsset(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
+
+      doc.font('Helvetica-Bold').fontSize(22).fillColor('#0f172a').text(String(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones'), 42, 42, { width: 365 });
+      doc.font('Helvetica').fontSize(9).fillColor('#475569').text(String(cfg.Empresa_Descripcion || ''), 42, 76, { width: 335, lineGap: 2 });
+      const contactLine = [
+        cfg.Empresa_Telefono && `Tel: ${cfg.Empresa_Telefono}`,
+        cfg.Empresa_Whatsapp && `WhatsApp: ${cfg.Empresa_Whatsapp}`,
+        cfg.Empresa_Email && `Email: ${cfg.Empresa_Email}`,
+        cfg.Empresa_Direccion && `Direccion: ${cfg.Empresa_Direccion}`
+      ].filter(Boolean).join(' - ');
+      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, 132, { width: 380 });
+      if (logoFile) {
+        try { doc.image(logoFile, pageWidth - 142, 48, { fit: [82, 82], align: 'right' }); } catch (error) {}
+      }
+
+      doc.moveTo(42, 155).lineTo(pageWidth - 42, 155).lineWidth(2).strokeColor('#0f172a').stroke();
+      addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, 176, 120);
+      addPdfField(doc, 'Validez', `${cfg.Presupuesto_Validez_Dias || 15} dias`, 176, 176, 120);
+      addPdfField(doc, 'Cliente', presupuesto.Cliente_Nombre, 310, 176, 220);
+      addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, 220, 120);
+      addPdfField(doc, 'Direccion', presupuesto.Direccion, 176, 220, 220);
+      addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 410, 220, 120);
+
+      doc.roundedRect(42, 270, contentWidth, 150, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('DETALLE DE TRABAJO', 56, 286);
+      doc.font('Helvetica').fontSize(10).fillColor('#111827').text(String(presupuesto.Detalle_Servicio || '-'), 56, 306, {
+        width: contentWidth - 28,
+        height: 96,
+        lineGap: 3
+      });
+
+      const summaryX = pageWidth - 250;
+      doc.moveTo(summaryX, 450).lineTo(pageWidth - 42, 450).lineWidth(1.5).strokeColor('#0f172a').stroke();
+      doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Total', summaryX, 464);
+      doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
+      if (num(presupuesto.Adelanto) > 0) {
+        doc.font('Helvetica').fontSize(8).fillColor('#64748b').text('Adelanto para inicio de trabajo', summaryX, 492, { width: 120 });
+        doc.font('Helvetica').fontSize(8).fillColor('#475569').text(money(presupuesto.Adelanto), summaryX, 492, { width: 208, align: 'right' });
+      }
+
+      doc.roundedRect(42, 540, contentWidth, 80, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      addPdfField(doc, 'Forma de pago', presupuesto.Forma_Pago, 56, 556, 210);
+      addPdfField(doc, 'Condicion de pago', presupuesto.Condicion_Pago, 286, 556, 210);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('OBSERVACIONES', 56, 594);
+      doc.font('Helvetica').fontSize(9).fillColor('#111827').text(String(presupuesto.Observaciones || '-'), 56, 606, { width: contentWidth - 28 });
+
+      doc.moveTo(42, 760).lineTo(pageWidth - 42, 760).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      doc.fontSize(7).fillColor('#64748b').text('Documento generado por ERP Mantenimiento.', 42, 772, { width: contentWidth, align: 'center' });
+      doc.end();
+    } catch (error) {
+      resolve(false);
+    }
+  });
+}
+
+async function createQuoteHtml(presupuesto, cfg) {
   ensureDirs();
   const logoSrc = imageToDataUri(cfg.Empresa_Logo);
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
@@ -938,7 +1018,8 @@ function createQuoteHtml(presupuesto, cfg) {
   fs.writeFileSync(file, html);
   const pdfFilename = `${presupuesto.ID}-${safeName(presupuesto.Cliente_Nombre)}.pdf`;
   const pdfFile = path.join(quoteDir, pdfFilename);
-  const hasPdf = renderPdfFromHtml(file, pdfFile);
+  let hasPdf = await renderQuotePdfNative(presupuesto, cfg, pdfFile);
+  if (!hasPdf) hasPdf = renderPdfFromHtml(file, pdfFile);
   const pdfUrl = isVercel ? `/api/files/presupuestos/${encodeURIComponent(pdfFilename)}` : `/presupuestos/${pdfFilename}`;
   const htmlUrl = isVercel ? `/api/files/presupuestos/${encodeURIComponent(filename)}` : `/presupuestos/${filename}`;
   return hasPdf ? { file: pdfFile, htmlFile: file, url: pdfUrl } : { file, url: htmlUrl };
@@ -1384,19 +1465,26 @@ function localAttachment(file, filename, mimeType) {
   };
 }
 
-function presupuestoPdfAttachment(presupuesto) {
+async function ensurePresupuestoPdf(db, presupuesto, persistDrive = false) {
+  if (!presupuesto) return null;
+  const cfg = defaultQuoteConfig(configObject(db));
+  const quoteFile = await createQuoteHtml(presupuesto, cfg);
+  presupuesto.Archivo_Local = quoteFile.file;
+  presupuesto.PDF_URL = quoteFile.url;
+  if (persistDrive) {
+    const driveQuote = await uploadGeneratedQuoteToDrive(presupuesto, quoteFile);
+    if (driveQuote?.url) presupuesto.PDF_URL = driveQuote.url;
+  }
+  return quoteFile;
+}
+
+async function presupuestoPdfAttachment(db, presupuesto) {
+  const quoteFile = await ensurePresupuestoPdf(db, presupuesto, true);
+  if (!quoteFile?.file || !fs.existsSync(quoteFile.file)) return null;
   if (presupuesto?.PDF_URL && /^https?:\/\//i.test(presupuesto.PDF_URL)) {
     return { driveUrl: presupuesto.PDF_URL };
   }
-  if (!presupuesto?.Archivo_Local) return null;
-  let source = presupuesto.Archivo_Local;
-  if (path.extname(source).toLowerCase() === '.html') {
-    const pdfFile = source.replace(/\.html$/i, '.pdf');
-    if (!fs.existsSync(pdfFile)) renderPdfFromHtml(source, pdfFile);
-    if (fs.existsSync(pdfFile)) source = pdfFile;
-  }
-  if (path.extname(source).toLowerCase() !== '.pdf') return localAttachment(source, `${presupuesto.ID}.html`, 'text/html');
-  return localAttachment(source, `${presupuesto.ID}.pdf`, 'application/pdf');
+  return localAttachment(quoteFile.file, `${presupuesto.ID}.pdf`, 'application/pdf');
 }
 
 function emailRecipient(db, cliente, presupuesto) {
@@ -1458,7 +1546,7 @@ async function sendBusinessEmail(data) {
   const attachments = [];
 
   if ((tipo === 'Presupuesto' || data.Incluir_Presupuesto) && presupuesto) {
-    const att = presupuestoPdfAttachment(presupuesto);
+    const att = await presupuestoPdfAttachment(db, presupuesto);
     if (att) attachments.push(att);
   }
   if (tipo !== 'Presupuesto' && factura?.Drive_URL) {
@@ -1627,6 +1715,21 @@ app.post('/api/servicios', async (req, res) => {
 
 app.post('/api/presupuestos', async (req, res) => {
   try { res.json(ok(await savePresupuesto(req.body))); } catch (error) { fail(res, error); }
+});
+
+app.get('/api/presupuestos/:id/pdf', async (req, res) => {
+  try {
+    const db = await readDb();
+    const presupuesto = findById(db, 'Presupuestos', req.params.id);
+    if (!presupuesto) throw new Error('Presupuesto no encontrado.');
+    const quoteFile = await ensurePresupuestoPdf(db, presupuesto, false);
+    await writeDb(db);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${presupuesto.ID}.pdf"`);
+    res.sendFile(path.resolve(quoteFile.file));
+  } catch (error) {
+    fail(res, error);
+  }
 });
 
 app.post('/api/trabajos', async (req, res) => {

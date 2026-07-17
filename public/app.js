@@ -809,6 +809,7 @@ function renderPresupuestos() {
     ${presupuestoEstadoControl(r)}
     ${presupuestoLifecycleActions(r)}
     ${presupuestoAgendaAction(r)}
+    <button class="secondaryBtn" onclick="window.open('/api/presupuestos/${r.ID}/pdf', '_blank')">PDF</button>
     <button class="secondaryBtn" onclick="openPresupuestoModal('${r.ID}')">Editar</button>
     ${correoButtonForPresupuesto(r)}
     ${invoiceActionForPresupuesto(r)}
@@ -2136,7 +2137,7 @@ function showHistorial(id) {
   document.getElementById('historialContent').innerHTML = `
     <h2>${esc(c.Nombre)}</h2><p>${esc(c.Direccion || '')} - ${esc(c.Whatsapp || '')} - ${esc(c.Email || '')}</p>
     <div class="historyGrid">
-      <div class="historyPanel"><h3>Presupuestos</h3>${presup.map(p => `<p><b>${p.ID}</b> - ${money(p.Total)} - ${p.Estado} ${p.PDF_URL ? `<br><a class="link" href="${p.PDF_URL}" target="_blank">Ver presupuesto</a>` : ''}</p>`).join('') || 'Sin presupuestos'}</div>
+      <div class="historyPanel"><h3>Presupuestos</h3>${presup.map(p => `<p><b>${p.ID}</b> - ${money(p.Total)} - ${p.Estado}<br><a class="link" href="/api/presupuestos/${p.ID}/pdf" target="_blank">Ver PDF</a></p>`).join('') || 'Sin presupuestos'}</div>
       <div class="historyPanel"><h3>Trabajos</h3>${trab.map(t => `<p><b>${t.ID}</b> - ${esc(t.Titulo)}<br>${esc(t.Estado)} - ${esc(t.Fecha_Programada || '')}</p>`).join('') || 'Sin trabajos'}</div>
       <div class="historyPanel"><h3>Contactos internos</h3>${admins.map(a => `<p><b>${esc(a.Administracion)}</b><br>${esc(a.Contacto)}<br>${wa(a.Whatsapp)} - ${mail(a.Email)}</p>`).join('') || ''}${unidades.map(u => `<p><b>Unidad ${esc(u.Unidad)}</b><br>Prop: ${esc(u.Propietario || '-')} ${wa(u.Propietario_Whatsapp)}<br>Inq: ${esc(u.Inquilino || '-')} ${wa(u.Inquilino_Whatsapp)}<br>Enc: ${esc(u.Encargado || '-')} ${wa(u.Encargado_Whatsapp)}</p>`).join('') || ''}</div>
       <div class="historyPanel"><h3>Cobros</h3>${cobros.map(co => `<p><b>${esc(co.Fecha)}</b> - ${money(co.Importe)}<br>${esc(co.Concepto)}</p>`).join('') || 'Sin cobros'}</div>
