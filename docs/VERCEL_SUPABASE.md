@@ -65,9 +65,11 @@ Vercel ejecuta la API con Node y sirve los archivos de `public`.
 
 ## 5. Pendiente importante
 
-La base ya queda preparada para Supabase. Los archivos PDF, facturas y adjuntos todavia usan:
+La base ya queda preparada para Supabase. Los archivos PDF, facturas y adjuntos usan:
 
 - Apps Script / Drive si `APPS_SCRIPT_URL` esta configurado.
 - Archivo temporal/local como respaldo.
 
-Para produccion conviene mover todos los adjuntos a Drive o Supabase Storage.
+Con el `docs/Code.gs` actualizado, Drive crea una carpeta `ERP Mantenimiento` y subcarpetas por tipo de archivo, por ejemplo `Facturas` y `Presupuesto`.
+
+Para produccion conviene mantener todos los adjuntos en Drive o migrarlos luego a Supabase Storage.

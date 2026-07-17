@@ -821,6 +821,11 @@ async function savePresupuesto(data) {
   const quoteFile = createQuoteHtml(row, cfg);
   row.PDF_URL = quoteFile.url;
   row.Archivo_Local = quoteFile.file;
+  const driveQuote = await uploadGeneratedQuoteToDrive(row, quoteFile);
+  if (driveQuote?.url) {
+    row.PDF_URL = driveQuote.url;
+    row.Archivo_Local = quoteFile.file;
+  }
   upsert(db, 'Presupuestos', row);
   if (data.Servicio_ID) {
     const servicio = findById(db, 'Servicios', data.Servicio_ID);
@@ -908,7 +913,7 @@ function createQuoteHtml(presupuesto, cfg) {
       <div class="company">
         <h1>${esc(cfg.Empresa_Nombre)}</h1>
         <div class="intro">${esc(cfg.Empresa_Descripcion)}</div>
-        <div class="contact">${[cfg.Empresa_Telefono && 'Tel: ' + cfg.Empresa_Telefono, cfg.Empresa_Whatsapp && 'WhatsApp: ' + cfg.Empresa_Whatsapp, cfg.Empresa_Email && 'Email: ' + cfg.Empresa_Email, cfg.Empresa_Direccion && 'Direccion: ' + cfg.Empresa_Direccion].filter(Boolean).map(esc).join(' · ')}</div>
+        <div class="contact">${[cfg.Empresa_Telefono && 'Tel: ' + cfg.Empresa_Telefono, cfg.Empresa_Whatsapp && 'WhatsApp: ' + cfg.Empresa_Whatsapp, cfg.Empresa_Email && 'Email: ' + cfg.Empresa_Email, cfg.Empresa_Direccion && 'Direccion: ' + cfg.Empresa_Direccion].filter(Boolean).map(esc).join(' - ')}</div>
       </div>
       ${logoSrc ? `<img class="logo" src="${esc(logoSrc)}" alt="Logo">` : ''}
     </div>
@@ -937,6 +942,25 @@ function createQuoteHtml(presupuesto, cfg) {
   const pdfUrl = isVercel ? `/api/files/presupuestos/${encodeURIComponent(pdfFilename)}` : `/presupuestos/${pdfFilename}`;
   const htmlUrl = isVercel ? `/api/files/presupuestos/${encodeURIComponent(filename)}` : `/presupuestos/${filename}`;
   return hasPdf ? { file: pdfFile, htmlFile: file, url: pdfUrl } : { file, url: htmlUrl };
+}
+
+async function uploadGeneratedQuoteToDrive(presupuesto, quoteFile) {
+  if (!appsScriptUrl || !quoteFile?.file || !fs.existsSync(quoteFile.file)) return null;
+  const ext = path.extname(quoteFile.file).toLowerCase();
+  const mimeType = ext === '.pdf' ? 'application/pdf' : 'text/html';
+  const base64 = fs.readFileSync(quoteFile.file).toString('base64');
+  try {
+    return await uploadDriveFile({
+      dataUrl: `data:${mimeType};base64,${base64}`,
+      filename: path.basename(quoteFile.file),
+      clienteNombre: presupuesto.Cliente_Nombre || '',
+      presupuestoId: presupuesto.ID || '',
+      tipoArchivo: 'Presupuesto'
+    });
+  } catch (error) {
+    console.warn('No se pudo subir el presupuesto a Drive:', error.message);
+    return null;
+  }
 }
 
 async function saveTrabajo(data) {
@@ -1335,6 +1359,7 @@ async function uploadDriveFile(payload) {
     filename: safeName(payload.filename || 'factura'),
     mimeType: match[1],
     base64: match[2],
+    tipoArchivo: payload.tipoArchivo || 'Factura',
     clienteNombre: payload.clienteNombre || '',
     servicioId: payload.servicioId || '',
     trabajoId: payload.trabajoId || '',
@@ -1344,7 +1369,7 @@ async function uploadDriveFile(payload) {
   };
   if (appsScriptUrl) return callAppsScript('uploadFile', { file });
 
-  const filename = `Factura_${file.servicioId || file.trabajoId || file.presupuestoId || file.cobroId || Date.now()}_${Date.now()}_${file.filename}`;
+  const filename = `${safeName(file.tipoArchivo)}_${file.servicioId || file.trabajoId || file.presupuestoId || file.cobroId || Date.now()}_${Date.now()}_${file.filename}`;
   const localFile = path.join(uploadDir, filename);
   fs.writeFileSync(localFile, Buffer.from(file.base64, 'base64'));
   return { id: filename, name: filename, url: isVercel ? `/api/files/uploads/${encodeURIComponent(filename)}` : `/uploads/${filename}` };
@@ -1360,6 +1385,9 @@ function localAttachment(file, filename, mimeType) {
 }
 
 function presupuestoPdfAttachment(presupuesto) {
+  if (presupuesto?.PDF_URL && /^https?:\/\//i.test(presupuesto.PDF_URL)) {
+    return { driveUrl: presupuesto.PDF_URL };
+  }
   if (!presupuesto?.Archivo_Local) return null;
   let source = presupuesto.Archivo_Local;
   if (path.extname(source).toLowerCase() === '.html') {

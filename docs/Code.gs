@@ -118,9 +118,11 @@ function writeDb_(db) {
 
 function uploadFile_(file) {
   if (!file.base64) throw new Error('Falta el archivo.');
-  const folder = getOrCreateFolder_('ERP Mantenimiento Facturas');
+  const root = getOrCreateFolder_('ERP Mantenimiento');
+  const folder = getOrCreateChildFolder_(root, file.tipoArchivo || 'Facturas');
   const context = [
     file.clienteNombre,
+    file.tipoArchivo,
     file.servicioId,
     file.trabajoId,
     file.presupuestoId,
@@ -172,6 +174,12 @@ function extractDriveId_(url) {
 function getOrCreateFolder_(name) {
   const folders = DriveApp.getFoldersByName(name);
   return folders.hasNext() ? folders.next() : DriveApp.createFolder(name);
+}
+
+function getOrCreateChildFolder_(parent, name) {
+  const safe = sanitizeFileName_(name || 'Archivos');
+  const folders = parent.getFoldersByName(safe);
+  return folders.hasNext() ? folders.next() : parent.createFolder(safe);
 }
 
 function sanitizeFileName_(name) {
