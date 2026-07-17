@@ -850,6 +850,7 @@ function renderPresupuestos() {
     <button class="secondaryBtn" onclick="window.open('/api/presupuestos/${r.ID}/pdf', '_blank')">PDF</button>
     <button class="secondaryBtn" onclick="openPresupuestoModal('${r.ID}')">Editar</button>
     ${correoButtonForPresupuesto(r)}
+    ${whatsappButtonForPresupuesto(r)}
     ${invoiceActionForPresupuesto(r)}
     <button class="dangerBtn" onclick="deleteRow('Presupuestos','${r.ID}')">Eliminar</button>
   `);
@@ -898,6 +899,14 @@ function correoButtonForPresupuesto(p) {
 function correoButtonForFactura(f) {
   const sent = facturaCorreoEnviado(f.ID);
   return `<button class="${sent ? 'sentBtn' : 'secondaryBtn'}" onclick="openCorreoModal({tipo:'Factura', facturaId:'${f.ID}'})">${sent ? 'Correo enviado' : 'Correo'}</button>`;
+}
+
+function whatsappButtonForPresupuesto(p) {
+  return `<button class="secondaryBtn" onclick="openWhatsAppPresupuesto('${p.ID}')">WhatsApp</button>`;
+}
+
+function whatsappButtonForFactura(f) {
+  return `<button class="secondaryBtn" onclick="openWhatsAppFactura('${f.ID}')">WhatsApp</button>`;
 }
 
 function invoiceActionForPresupuesto(p) {
@@ -994,6 +1003,7 @@ function facturaRow(f) {
     <td class="actionsCell" data-label="Acciones"><div class="tableActions">
       <button class="secondaryBtn" onclick="openFacturaDetalleModal('${f.ID}')">Ver</button>
       ${correoButtonForFactura(f)}
+      ${whatsappButtonForFactura(f)}
       ${f.Estado !== 'Cobrada' ? `<button class="secondaryBtn" onclick="marcarFacturaCobrada('${f.ID}')">Marcar cobrada</button>` : ''}
     </div></td>
   </tr>`;
@@ -1117,6 +1127,72 @@ function facturaDetalleCorreo(factura, presupuesto) {
 
 function isGenericInvoiceConcept(value) {
   return ['pago parcial', 'factura', ''].includes(String(value || '').trim().toLowerCase());
+}
+
+function openWhatsAppPresupuesto(id) {
+  const presupuesto = (state.presupuestos || []).find(p => p.ID === id);
+  if (!presupuesto) return showToast('No se encontro el presupuesto.');
+  const cliente = (state.clientes || []).find(c => c.ID === presupuesto.Cliente_ID);
+  const recipient = whatsappRecipient(cliente, presupuesto);
+  if (!recipient.phone) return showToast('No hay WhatsApp cargado para este cliente o administracion.');
+  const pdfUrl = absoluteUrl(`/api/presupuestos/${presupuesto.ID}/pdf`);
+  const message = [
+    'Hola, te enviamos el presupuesto correspondiente al trabajo solicitado.',
+    '',
+    `Presupuesto: ${presupuesto.ID}`,
+    `Detalle: ${shortText(presupuesto.Detalle_Servicio || '', 420)}`,
+    `Total: ${money(presupuesto.Total || 0)}`,
+    '',
+    `PDF: ${pdfUrl}`,
+    '',
+    'Saludos.',
+    'Pablo Gonzalez Construcciones'
+  ].join('\n');
+  openWhatsApp(recipient.phone, message);
+}
+
+function openWhatsAppFactura(id) {
+  const factura = (state.facturas || []).find(f => f.ID === id);
+  if (!factura) return showToast('No se encontro la factura.');
+  const presupuesto = (state.presupuestos || []).find(p => p.ID === factura.Presupuesto_ID);
+  const cliente = (state.clientes || []).find(c => c.ID === (factura.Cliente_ID || presupuesto?.Cliente_ID));
+  const recipient = whatsappRecipient(cliente, presupuesto);
+  if (!recipient.phone) return showToast('No hay WhatsApp cargado para este cliente o administracion.');
+  const detalle = facturaDetalleCorreo(factura, presupuesto);
+  const message = [
+    'Hola, te enviamos la factura correspondiente al trabajo realizado.',
+    '',
+    `Factura: ${factura.Factura_Nro || factura.ID}`,
+    `Detalle: ${shortText(detalle || factura.Concepto || '', 420)}`,
+    `Total de la factura: ${money(factura.Importe || 0)}`,
+    factura.Drive_URL ? `PDF: ${factura.Drive_URL}` : '',
+    '',
+    'Saludos.',
+    'Pablo Gonzalez Construcciones'
+  ].filter(line => line !== '').join('\n');
+  openWhatsApp(recipient.phone, message);
+}
+
+function whatsappRecipient(cliente, presupuesto) {
+  const clienteId = presupuesto?.Cliente_ID || cliente?.ID || '';
+  const admin = (state.administradores || []).find(a => a.Cliente_ID === clienteId && (a.Whatsapp || a.Telefono));
+  return {
+    phone: presupuesto?.Contacto_Whatsapp || admin?.Whatsapp || admin?.Telefono || cliente?.Whatsapp || cliente?.Telefono || '',
+    name: presupuesto?.Contacto_Nombre || admin?.Contacto || admin?.Administracion || cliente?.Nombre || ''
+  };
+}
+
+function openWhatsApp(phone, message) {
+  const digits = phoneDigits(phone);
+  if (!digits) return showToast('El numero de WhatsApp no es valido.');
+  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+  showToast('WhatsApp abierto con el mensaje preparado.');
+}
+
+function absoluteUrl(path) {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${window.location.origin}${path.startsWith('/') ? path : '/' + path}`;
 }
 
 function correoRecipient(cliente, presupuesto) {
