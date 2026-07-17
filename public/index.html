@@ -27,20 +27,39 @@
   <aside class="sidebar">
     <div class="brand">
       <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
-      <b>Pablo Gonzalez</b>
-      <span>Construcciones</span>
+      <div>
+        <b>Pablo Gonzalez</b>
+        <span>Construcciones</span>
+      </div>
     </div>
-    <button class="nav active" data-view="dashboard">Dashboard</button>
-    <button class="nav" data-view="clientes">Clientes</button>
-    <button class="nav" data-view="administraciones">Administraciones</button>
-    <button class="nav" data-view="contactos">Contactos</button>
-    <button class="nav" data-view="servicios">Visitas / Emergencias</button>
-    <button class="nav" data-view="presupuestos">Presupuestos</button>
-    <button class="nav" data-view="agenda">Agenda</button>
-    <button class="nav" data-view="facturas">Facturas</button>
-    <button class="nav" data-view="correos">Correos</button>
-    <button class="nav" data-view="gastos">Gastos</button>
-    <button class="nav" data-view="historial">Historial</button>
+    <nav class="navMenu" aria-label="Menu principal">
+      <div class="navGroup">
+        <span class="navGroupTitle">Inicio</span>
+        <button class="nav active" data-view="dashboard">Dashboard</button>
+      </div>
+      <div class="navGroup">
+        <span class="navGroupTitle">Gestion</span>
+        <button class="nav" data-view="clientes">Clientes</button>
+        <button class="nav" data-view="administraciones">Administraciones</button>
+        <button class="nav" data-view="contactos">Contactos</button>
+      </div>
+      <div class="navGroup">
+        <span class="navGroupTitle">Operacion</span>
+        <button class="nav" data-view="servicios">Visitas / Emergencias</button>
+        <button class="nav" data-view="presupuestos">Presupuestos</button>
+        <button class="nav" data-view="agenda">Agenda</button>
+      </div>
+      <div class="navGroup">
+        <span class="navGroupTitle">Finanzas</span>
+        <button class="nav" data-view="facturas">Facturas</button>
+        <button class="nav" data-view="correos">Correos</button>
+        <button class="nav" data-view="gastos">Gastos</button>
+      </div>
+      <div class="navGroup">
+        <span class="navGroupTitle">Sistema</span>
+        <button class="nav" data-view="historial">Historial</button>
+      </div>
+    </nav>
     <button id="logoutBtn" class="logoutBtn">Salir</button>
   </aside>
 

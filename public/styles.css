@@ -67,23 +67,28 @@ button,.primaryBtn{background:var(--accent);color:white;border:0;border-radius:1
   --radius:14px;
   --shadow:0 12px 30px rgba(15,23,42,.06)
 }
-body{background:var(--bg);font-size:14px;line-height:1.35}
-.sidebar{width:230px;padding:18px 12px;background:linear-gradient(180deg,#0f172a,#111827)}
-.main{margin-left:230px;padding:24px;max-width:1680px}
-.brand{margin-bottom:18px;padding:0 4px}
-.brand img{max-height:104px;border-radius:10px;margin-bottom:10px}
-.brand b{font-size:16px}
-.brand span{font-size:10px;letter-spacing:.14em;margin-top:5px}
-.nav,.logoutBtn{border-radius:10px;margin:3px 0;padding:9px 11px;font-size:12px;line-height:1.15}
+body{background:var(--bg);font-size:13px;line-height:1.34}
+.sidebar{width:214px;padding:12px 10px;background:linear-gradient(180deg,#0f172a,#111827);display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+.main{margin-left:214px;padding:18px 22px 24px;max-width:1720px}
+.brand{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:6px 6px 10px;border-bottom:1px solid rgba(148,163,184,.18)}
+.brand img{width:42px;height:42px;max-height:42px;border-radius:9px;margin:0;object-fit:cover}
+.brand b{font-size:13px;line-height:1.1}
+.brand span{font-size:9px;letter-spacing:.12em;margin-top:3px}
+.navMenu{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 2px 8px;scrollbar-width:thin;scrollbar-color:#334155 transparent}
+.navMenu::-webkit-scrollbar{width:6px}.navMenu::-webkit-scrollbar-thumb{background:#334155;border-radius:999px}
+.navGroup{padding:7px 0;border-bottom:1px solid rgba(148,163,184,.12)}
+.navGroup:last-child{border-bottom:0}
+.navGroupTitle{display:block;padding:0 8px 5px;color:#7dd3fc;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.nav,.logoutBtn{border-radius:9px;margin:2px 0;padding:8px 9px;font-size:11px;line-height:1.12}
 .nav:hover,.nav.active{background:#223047}
-.logoutBtn{margin-top:12px}
-.topbar{align-items:center;margin-bottom:20px}
-h1{font-size:28px;letter-spacing:0}
-.topbar p{margin:7px 0 0;font-size:14px}
+.logoutBtn{margin-top:8px;flex:0 0 auto}
+.topbar{position:sticky;top:0;z-index:15;align-items:center;margin:-18px -22px 16px;padding:14px 22px;background:rgba(246,247,249,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(223,227,234,.86)}
+h1{font-size:24px;letter-spacing:0}
+.topbar p{margin:5px 0 0;font-size:12px}
 .searchBox{min-width:min(460px,38vw)}
 .searchBox input,.historialBox input,.clientToolbar input,.clientToolbar select,.contactSide input,.contactRoleSelect,.dateFilters input,.reportActions select,.reportActions input,.agendaControls select{border-radius:12px;padding:10px 12px;font-size:13px;background:#fff}
 .sectionHead{margin:10px 0 12px;gap:10px}
-.sectionHead h2{font-size:22px}
+.sectionHead h2{font-size:19px}
 button,.primaryBtn,.secondaryBtn,.dangerBtn,.sentBtn{border-radius:10px;padding:8px 11px;font-size:12px;min-height:34px;line-height:1.15;box-shadow:none;white-space:nowrap}
 button:hover,.primaryBtn:hover,.secondaryBtn:hover,.dangerBtn:hover,.sentBtn:hover{filter:brightness(.97)}
 button:disabled{opacity:.55;cursor:not-allowed}
@@ -91,29 +96,29 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .dangerBtn{background:#e11d2e;color:#fff}
 .sentBtn{background:#dcfce7;color:#166534;border:1px solid #86efac}
 .hint{border-radius:12px;padding:10px 12px;font-size:12px;margin-bottom:12px;background:#eef6ff}
-.card,.kpiCard,.reportPanel,.dashboardToolbar,.clientCard,.adminCard,.contactSide,.contactHero,.contactSection,.billingPanel,.historialBox,.tableWrap,.agendaToolbar,.dayCol,.monthCol{border-radius:var(--radius);box-shadow:var(--shadow)}
-.dashboardToolbar,.reportPanel,.clientCard,.adminCard,.contactHero,.contactSection,.billingPanel,.historialBox{padding:14px}
+.card,.kpiCard,.reportPanel,.dashboardToolbar,.clientCard,.adminCard,.contactSide,.contactHero,.contactSection,.billingPanel,.historialBox,.tableWrap,.agendaToolbar,.dayCol,.monthCol{border-radius:12px;box-shadow:var(--shadow)}
+.dashboardToolbar,.reportPanel,.clientCard,.adminCard,.contactHero,.contactSection,.billingPanel,.historialBox{padding:12px}
 .invoiceHub{align-items:center}
 .invoiceHub h3{font-size:18px}
 .invoiceHub p{font-size:13px}
 .invoiceHub .billingList button{max-width:360px;text-align:left;white-space:normal;line-height:1.25}
-.dashboardKpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.kpiCard .value,.card .value{font-size:24px}
+.dashboardKpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpiCard .value,.card .value{font-size:22px}
 .portfolioStrip{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
-.miniStat{border-radius:12px;padding:10px 11px}
-.miniStat b{font-size:16px}
-.clientGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.adminGrid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
-.clientCard h3,.adminCard h3{font-size:16px}
-.clientAvatar{width:38px;height:38px;border-radius:11px;font-size:13px}
+.miniStat{border-radius:11px;padding:9px 10px}
+.miniStat b{font-size:15px}
+.clientGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.adminGrid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.clientCard h3,.adminCard h3{font-size:15px}
+.clientAvatar{width:34px;height:34px;border-radius:10px;font-size:12px}
 .clientActions,.taskActions,.agendaActions,.quickLinks,.modalActions,.tableActions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.clientActions{margin-top:10px;padding-top:10px}
+.clientActions{margin-top:8px;padding-top:8px}
 .clientActions button,.taskActions button,.tableActions button,.quickLinks a,.miniLink,.adminLinkedList button{font-size:11px;padding:7px 9px;min-height:30px;border-radius:9px}
 .badge{font-size:11px;padding:4px 8px}
 .inlineSelect{border-radius:9px;padding:7px 9px;font-size:12px;max-width:155px}
 .tableWrap{overflow:auto;background:#fff}
 table{min-width:900px}
-th,td{padding:10px 12px;font-size:12px}
+th,td{padding:8px 10px;font-size:12px}
 th{font-size:10px;letter-spacing:.02em}
 td small{display:block;color:var(--muted);margin-top:3px}
 td.actionsCell{min-width:210px}
@@ -144,13 +149,13 @@ td.actionsCell{min-width:210px}
 .adminDataItem{border-radius:11px;padding:8px 9px}
 .adminCount{min-width:76px;border-radius:12px;padding:8px}
 .adminCount b{font-size:22px}
-.contactsLayout{grid-template-columns:280px minmax(0,1fr);gap:12px}
-.contactClientList{max-height:calc(100vh - 260px);overflow:auto;padding-right:2px}
+.contactsLayout{grid-template-columns:260px minmax(0,1fr);gap:10px}
+.contactClientList{max-height:calc(100vh - 225px);overflow:auto;padding-right:2px}
 .contactClientList button{border-radius:11px;padding:9px 10px;font-size:12px}
 .contactHero{align-items:center}
 .contactTableWrap{padding:12px 0 0}
 .contactTable{min-width:760px}
-.kanban{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.kanban{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .kanbanCol{border-radius:14px;padding:10px;min-height:220px}
 .taskCard{border-radius:12px;padding:11px}
 .workMoney{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
@@ -161,7 +166,7 @@ td.actionsCell{min-width:210px}
 .dayCol h3,.monthCol h3{font-size:13px}
 .event{border-radius:10px;padding:9px;font-size:12px}
 .yearAgenda{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
-.modalBox{border-radius:18px;width:min(920px,94vw)}
+.modalBox{border-radius:16px;width:min(900px,94vw)}
 .modalHeader{padding:14px 18px}
 .modalHeader h2{font-size:20px}
 .formGrid{gap:11px;padding:18px}
@@ -183,16 +188,19 @@ td.actionsCell{min-width:210px}
 
 @media(max-width:760px){
   body{font-size:13px}
-  .sidebar{position:sticky;top:0;z-index:30;width:100%;height:auto;padding:10px;background:#101827}
-  .main{margin-left:0;padding:14px}
-  .brand{display:flex;align-items:center;gap:10px;margin:0 0 10px}
-  .brand img{width:48px;height:48px;max-height:48px;margin:0;border-radius:9px}
-  .brand b{font-size:14px}
-  .brand span{font-size:9px;margin-top:3px}
-  .sidebar{white-space:nowrap;overflow-x:auto;box-shadow:0 10px 30px rgba(15,23,42,.18)}
-  .sidebar .nav,.logoutBtn{display:inline-flex;width:auto;vertical-align:top;margin:0 4px 6px 0;padding:8px 10px}
+  .sidebar{position:sticky;top:0;z-index:30;width:100%;height:auto;max-height:116px;padding:8px;background:#101827;display:block;white-space:nowrap;overflow-x:auto;overflow-y:hidden;box-shadow:0 10px 30px rgba(15,23,42,.18)}
+  .main{margin-left:0;padding:12px}
+  .brand{display:inline-flex;vertical-align:top;align-items:center;gap:8px;margin:0 8px 0 0;padding:0 10px 0 0;border-bottom:0;border-right:1px solid rgba(148,163,184,.2)}
+  .brand img{width:34px;height:34px;max-height:34px;margin:0;border-radius:8px}
+  .brand b{font-size:12px}
+  .brand span{font-size:8px;margin-top:2px}
+  .navMenu{display:inline-flex;vertical-align:top;gap:8px;overflow:visible;padding:0;max-width:none}
+  .navGroup{display:inline-flex;align-items:center;gap:4px;border-bottom:0;padding:0}
+  .navGroupTitle{display:none}
+  .sidebar .nav,.logoutBtn{display:inline-flex;width:auto;vertical-align:top;margin:0 2px 5px 0;padding:7px 9px}
+  .logoutBtn{margin-left:4px}
   .sidebar::-webkit-scrollbar{height:0}
-  .topbar{display:block;margin-bottom:14px}
+  .topbar{display:block;position:static;margin:0 0 12px;padding:0;background:transparent;border-bottom:0;backdrop-filter:none}
   h1{font-size:24px}
   .topbar p{font-size:12px}
   .searchBox{width:100%;min-width:0;margin-top:12px}
