@@ -16,18 +16,90 @@ let clientTypeFilter = 'Todos';
 let contactSearch = '';
 let selectedContactClientId = '';
 let contactRoleFilter = 'Todos';
+let currentUser = '';
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  bindAuth();
   bindNav();
   bindGlobalSearch();
-  loadData();
+  await checkSession();
 });
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
-  const result = await response.json();
+  const response = await fetch(url, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
+  const result = await response.json().catch(() => ({ ok: false, message: 'Respuesta invalida del servidor' }));
+  if (response.status === 401) {
+    showLogin();
+    throw new Error(result.message || 'Necesitas iniciar sesion.');
+  }
   if (!result.ok) throw new Error(result.message || 'Error inesperado');
   return result.data;
+}
+
+function bindAuth() {
+  const form = document.getElementById('loginForm');
+  const logout = document.getElementById('logoutBtn');
+  form?.addEventListener('submit', login);
+  logout?.addEventListener('click', logoutSession);
+}
+
+async function checkSession() {
+  try {
+    const session = await api('/api/auth/session');
+    if (session.authenticated) {
+      currentUser = session.user || '';
+      hideLogin();
+      await loadData();
+    } else {
+      showLogin();
+    }
+  } catch (error) {
+    showLogin();
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  const errorBox = document.getElementById('loginError');
+  errorBox.textContent = '';
+  const button = event.target.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Entrando...';
+  try {
+    const user = document.getElementById('loginUser').value;
+    const password = document.getElementById('loginPassword').value;
+    const session = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ user, password }) });
+    currentUser = session.user || user;
+    document.getElementById('loginPassword').value = '';
+    hideLogin();
+    await loadData();
+  } catch (error) {
+    errorBox.textContent = error.message || 'No se pudo iniciar sesion.';
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Entrar';
+  }
+}
+
+async function logoutSession() {
+  try {
+    await api('/api/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+  } catch (error) {
+    // La salida local igual debe cerrar la pantalla si la sesion ya no existe.
+  }
+  currentUser = '';
+  showLogin();
+}
+
+function showLogin() {
+  document.body.classList.add('auth-locked');
+  document.getElementById('loginScreen')?.classList.remove('hidden');
+  setTimeout(() => document.getElementById('loginUser')?.focus(), 30);
+}
+
+function hideLogin() {
+  document.body.classList.remove('auth-locked');
+  document.getElementById('loginScreen')?.classList.add('hidden');
 }
 
 function bindNav() {

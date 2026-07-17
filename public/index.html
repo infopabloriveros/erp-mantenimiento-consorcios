@@ -7,7 +7,23 @@
   <title>ERP Mantenimiento Local PRO</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="auth-locked">
+  <section id="loginScreen" class="loginScreen">
+    <form id="loginForm" class="loginBox">
+      <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
+      <h1>Acceso al ERP</h1>
+      <p>Ingresá con tu usuario administrador para gestionar clientes, presupuestos, agenda y facturas.</p>
+      <label>Usuario
+        <input id="loginUser" autocomplete="username" required>
+      </label>
+      <label>Clave
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Entrar</button>
+      <div id="loginError" class="loginError"></div>
+    </form>
+  </section>
+
   <aside class="sidebar">
     <div class="brand">
       <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
@@ -25,6 +41,7 @@
     <button class="nav" data-view="correos">Correos</button>
     <button class="nav" data-view="gastos">Gastos</button>
     <button class="nav" data-view="historial">Historial</button>
+    <button id="logoutBtn" class="logoutBtn">Salir</button>
   </aside>
 
   <main class="main">

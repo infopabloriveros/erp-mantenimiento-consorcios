@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { pathToFileURL } = require('url');
 const { google } = require('googleapis');
@@ -25,6 +26,9 @@ const appsScriptToken = process.env.APPS_SCRIPT_TOKEN || '';
 const appsScriptReadMode = process.env.APPS_SCRIPT_READ_MODE || 'cache';
 const supabaseUrl = String(process.env.SUPABASE_URL || '').trim();
 const supabaseServiceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '').trim();
+const adminUser = String(process.env.ERP_ADMIN_USER || (!isVercel ? 'admin' : '')).trim();
+const adminPassword = String(process.env.ERP_ADMIN_PASSWORD || (!isVercel ? 'admin123' : '')).trim();
+const sessionSecret = String(process.env.ERP_SESSION_SECRET || supabaseServiceRoleKey || (!isVercel ? 'dev-session-secret' : '')).trim();
 const serviceAccountFile = path.resolve(root, process.env.GOOGLE_SERVICE_ACCOUNT_FILE || './service-account.json');
 let sheetsClient = null;
 let sheetsReady = false;
@@ -32,6 +36,81 @@ let supabaseClient = null;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(root, 'public')));
+
+function parseCookies(req) {
+  return String(req.headers.cookie || '').split(';').reduce((acc, part) => {
+    const index = part.indexOf('=');
+    if (index > -1) acc[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+    return acc;
+  }, {});
+}
+
+function signSession(payload) {
+  if (!sessionSecret) throw new Error('Falta configurar ERP_SESSION_SECRET.');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', sessionSecret).update(body).digest('base64url');
+  return `${body}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  try {
+    if (!token || !sessionSecret || !token.includes('.')) return null;
+    const [body, signature] = token.split('.');
+    const expected = crypto.createHmac('sha256', sessionSecret).update(body).digest('base64url');
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (signatureBuffer.length !== expectedBuffer.length) return null;
+    if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) return null;
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (!payload.exp || payload.exp < Date.now()) return null;
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+function sessionCookieOptions(maxAgeSeconds) {
+  const parts = [
+    `erp_session=`,
+    `Max-Age=${maxAgeSeconds}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax'
+  ];
+  if (isVercel) parts.push('Secure');
+  return parts;
+}
+
+function setSessionCookie(res, token, maxAgeSeconds = 60 * 60 * 12) {
+  const parts = sessionCookieOptions(maxAgeSeconds);
+  parts[0] = `erp_session=${encodeURIComponent(token)}`;
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie', sessionCookieOptions(0).join('; '));
+}
+
+function safeCompare(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function currentSession(req) {
+  return verifySessionToken(parseCookies(req).erp_session);
+}
+
+function requireAuth(req, res, next) {
+  if (!req.path.startsWith('/api/')) return next();
+  if (['/api/auth/login', '/api/auth/logout', '/api/auth/session'].includes(req.path)) return next();
+  const session = currentSession(req);
+  if (!session) return res.status(401).json({ ok: false, message: 'Necesitas iniciar sesion.' });
+  req.user = session;
+  next();
+}
+
+app.use(requireAuth);
 
 function ensureDirs() {
   [dataDir, uploadDir, quoteDir].forEach(dir => {
@@ -1421,6 +1500,32 @@ function ok(data) {
 function fail(res, error) {
   res.status(500).json({ ok: false, message: error.message || String(error) });
 }
+
+app.get('/api/auth/session', (req, res) => {
+  const session = currentSession(req);
+  res.json(ok({ authenticated: Boolean(session), user: session?.user || '' }));
+});
+
+app.post('/api/auth/login', (req, res) => {
+  try {
+    if (!adminUser || !adminPassword || !sessionSecret) throw new Error('Falta configurar el usuario administrador.');
+    const user = String(req.body.user || '').trim();
+    const password = String(req.body.password || '');
+    const userOk = safeCompare(user, adminUser);
+    const passOk = safeCompare(password, adminPassword);
+    if (!userOk || !passOk) return res.status(401).json({ ok: false, message: 'Usuario o clave incorrectos.' });
+    const token = signSession({ user: adminUser, exp: Date.now() + (60 * 60 * 12 * 1000) });
+    setSessionCookie(res, token);
+    res.json(ok({ user: adminUser }));
+  } catch (error) {
+    fail(res, error);
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearSessionCookie(res);
+  res.json(ok({ loggedOut: true }));
+});
 
 app.get('/api/files/:kind/:filename', (req, res) => {
   const dirs = { uploads: uploadDir, presupuestos: quoteDir };
