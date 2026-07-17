@@ -49,3 +49,145 @@ button,.primaryBtn{background:var(--accent);color:white;border:0;border-radius:1
 .agendaHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 22px 0}.agendaHeader p{margin:0}.agendaActions{display:flex;gap:8px;flex-wrap:wrap}.agendaSearch{padding:14px 22px 0}.agendaSearch input{width:100%;border:1px solid var(--line);border-radius:13px;padding:12px}.adminStrip{padding:14px 22px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.adminItem{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px}.adminItem span{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:900}.adminItem b,.adminItem small{display:block;margin-top:4px}.adminItem small{color:var(--muted)}.contactTableWrap{padding:16px 22px 22px;overflow:auto}.contactTableWrap.compact{padding:0}.contactTable{min-width:980px}.contactSection .contactTable{min-width:1040px}.contactSection .compactContactTable{min-width:720px}.contactTable td:nth-child(4),.contactTable td:nth-child(5),.contactTable td:nth-child(6){white-space:nowrap}.compactContactTable td:nth-child(4){white-space:normal}.contactTable td small{display:block;color:var(--muted);margin-top:3px}.tableContactLink{display:inline-block;color:var(--accent);font-weight:850;text-decoration:none;white-space:nowrap}.personLine b{display:block}.quickLinks{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.quickLinks a,.miniLink{display:inline-flex;background:#e5e7eb;color:#111827;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:800;text-decoration:none}.emptyBox{border:1px dashed var(--line);border-radius:14px;padding:14px;color:var(--muted);background:#fff}
 .toast{position:fixed;right:24px;bottom:24px;background:#111827;color:white;padding:14px 18px;border-radius:14px;box-shadow:0 10px 30px #0005;z-index:100}
 @media(max-width:980px){.sidebar{position:relative;width:100%;height:auto}.main{margin-left:0}.topbar,.dashboardToolbar,.clientToolbar,.agendaToolbar,.billingPanel,.contactHero{flex-direction:column}.searchBox{min-width:100%;width:100%}.cards,.kanban,.calendar,.calendar.monthView,.yearAgenda,.historyGrid,.dashboardKpis,.portfolioStrip,.contactGrid,.clientGrid,.adminGrid,.adminContactGrid,.contactsLayout,.contactCards,.unitContactGrid,.contactRoles{grid-template-columns:1fr}.formGrid{grid-template-columns:1fr}.workMoney{grid-template-columns:1fr}}
+
+/* Professional compact shell */
+:root{
+  --bg:#f6f7f9;
+  --panel:#ffffff;
+  --ink:#0f172a;
+  --muted:#64748b;
+  --line:#dfe3ea;
+  --dark:#101827;
+  --dark-2:#1b2638;
+  --accent:#2563eb;
+  --accent-soft:#eff6ff;
+  --ok:#15803d;
+  --warn:#b45309;
+  --danger:#dc2626;
+  --radius:14px;
+  --shadow:0 12px 30px rgba(15,23,42,.06)
+}
+body{background:var(--bg);font-size:14px;line-height:1.35}
+.sidebar{width:230px;padding:18px 12px;background:linear-gradient(180deg,#0f172a,#111827)}
+.main{margin-left:230px;padding:24px;max-width:1680px}
+.brand{margin-bottom:18px;padding:0 4px}
+.brand img{max-height:104px;border-radius:10px;margin-bottom:10px}
+.brand b{font-size:16px}
+.brand span{font-size:10px;letter-spacing:.14em;margin-top:5px}
+.nav,.logoutBtn{border-radius:10px;margin:3px 0;padding:9px 11px;font-size:12px;line-height:1.15}
+.nav:hover,.nav.active{background:#223047}
+.logoutBtn{margin-top:12px}
+.topbar{align-items:center;margin-bottom:20px}
+h1{font-size:28px;letter-spacing:0}
+.topbar p{margin:7px 0 0;font-size:14px}
+.searchBox{min-width:min(460px,38vw)}
+.searchBox input,.historialBox input,.clientToolbar input,.clientToolbar select,.contactSide input,.contactRoleSelect,.dateFilters input,.reportActions select,.reportActions input,.agendaControls select{border-radius:12px;padding:10px 12px;font-size:13px;background:#fff}
+.sectionHead{margin:10px 0 12px;gap:10px}
+.sectionHead h2{font-size:22px}
+button,.primaryBtn,.secondaryBtn,.dangerBtn,.sentBtn{border-radius:10px;padding:8px 11px;font-size:12px;min-height:34px;line-height:1.15;box-shadow:none;white-space:nowrap}
+button:hover,.primaryBtn:hover,.secondaryBtn:hover,.dangerBtn:hover,.sentBtn:hover{filter:brightness(.97)}
+button:disabled{opacity:.55;cursor:not-allowed}
+.secondaryBtn{background:#e8edf3;color:#0f172a}
+.dangerBtn{background:#e11d2e;color:#fff}
+.sentBtn{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.hint{border-radius:12px;padding:10px 12px;font-size:12px;margin-bottom:12px;background:#eef6ff}
+.card,.kpiCard,.reportPanel,.dashboardToolbar,.clientCard,.adminCard,.contactSide,.contactHero,.contactSection,.billingPanel,.historialBox,.tableWrap,.agendaToolbar,.dayCol,.monthCol{border-radius:var(--radius);box-shadow:var(--shadow)}
+.dashboardToolbar,.reportPanel,.clientCard,.adminCard,.contactHero,.contactSection,.billingPanel,.historialBox{padding:14px}
+.dashboardKpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpiCard .value,.card .value{font-size:24px}
+.portfolioStrip{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.miniStat{border-radius:12px;padding:10px 11px}
+.miniStat b{font-size:16px}
+.clientGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.adminGrid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.clientCard h3,.adminCard h3{font-size:16px}
+.clientAvatar{width:38px;height:38px;border-radius:11px;font-size:13px}
+.clientActions,.taskActions,.agendaActions,.quickLinks,.modalActions,.tableActions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.clientActions{margin-top:10px;padding-top:10px}
+.clientActions button,.taskActions button,.tableActions button,.quickLinks a,.miniLink,.adminLinkedList button{font-size:11px;padding:7px 9px;min-height:30px;border-radius:9px}
+.badge{font-size:11px;padding:4px 8px}
+.inlineSelect{border-radius:9px;padding:7px 9px;font-size:12px;max-width:155px}
+.tableWrap{overflow:auto;background:#fff}
+table{min-width:900px}
+th,td{padding:10px 12px;font-size:12px}
+th{font-size:10px;letter-spacing:.02em}
+td small{display:block;color:var(--muted);margin-top:3px}
+td.actionsCell{min-width:210px}
+.tableActions{max-width:360px}
+.detailPreview{min-width:180px;max-width:320px}
+.adminContactGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.adminDataItem{border-radius:11px;padding:8px 9px}
+.adminCount{min-width:76px;border-radius:12px;padding:8px}
+.adminCount b{font-size:22px}
+.contactsLayout{grid-template-columns:280px minmax(0,1fr);gap:12px}
+.contactClientList{max-height:calc(100vh - 260px);overflow:auto;padding-right:2px}
+.contactClientList button{border-radius:11px;padding:9px 10px;font-size:12px}
+.contactHero{align-items:center}
+.contactTableWrap{padding:12px 0 0}
+.contactTable{min-width:760px}
+.kanban{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.kanbanCol{border-radius:14px;padding:10px;min-height:220px}
+.taskCard{border-radius:12px;padding:11px}
+.workMoney{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.workMoney span{border-radius:9px}
+.agendaToolbar{padding:13px 14px}
+.calendar,.calendar.monthView{gap:10px;grid-template-columns:repeat(7,minmax(150px,1fr));overflow:auto;padding-bottom:4px}
+.dayCol,.monthCol{min-height:170px;padding:10px;border-radius:14px}
+.dayCol h3,.monthCol h3{font-size:13px}
+.event{border-radius:10px;padding:9px;font-size:12px}
+.yearAgenda{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.modalBox{border-radius:18px;width:min(920px,94vw)}
+.modalHeader{padding:14px 18px}
+.modalHeader h2{font-size:20px}
+.formGrid{gap:11px;padding:18px}
+.field input,.field select,.field textarea{border-radius:11px;padding:10px 11px;font-size:13px}
+.field textarea{min-height:78px}
+.modalActions{padding:0 18px 18px}
+.toast{border-radius:12px;font-size:13px}
+
+@media(max-width:1180px){
+  .dashboardKpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .portfolioStrip{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+@media(max-width:760px){
+  body{font-size:13px}
+  .sidebar{position:sticky;top:0;z-index:30;width:100%;height:auto;padding:10px;background:#101827}
+  .main{margin-left:0;padding:14px}
+  .brand{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+  .brand img{width:48px;height:48px;max-height:48px;margin:0;border-radius:9px}
+  .brand b{font-size:14px}
+  .brand span{font-size:9px;margin-top:3px}
+  .sidebar .nav,.logoutBtn{display:inline-flex;width:auto;vertical-align:top;margin:0 4px 6px 0;padding:8px 10px}
+  .topbar{display:block;margin-bottom:14px}
+  h1{font-size:24px}
+  .topbar p{font-size:12px}
+  .searchBox{width:100%;min-width:0;margin-top:12px}
+  .sectionHead{align-items:flex-start;flex-direction:column}
+  .sectionHead button{align-self:flex-start}
+  .dashboardToolbar,.clientToolbar,.agendaToolbar,.billingPanel,.contactHero{display:block}
+  .dashboardKpis,.portfolioStrip,.clientGrid,.adminGrid,.adminContactGrid,.contactsLayout,.contactCards,.unitContactGrid,.contactRoles,.historyGrid,.compareGrid{grid-template-columns:1fr}
+  .contactsLayout{display:block}
+  .contactSide{margin-bottom:12px}
+  .contactClientList{max-height:260px}
+  .adminCardHead{align-items:center}
+  .clientToolbar select{width:100%;margin-top:8px}
+  .adminSummary,.clientSummary{gap:7px}
+  .adminSummary span,.clientSummary span{font-size:12px;padding:7px 10px}
+  .tableWrap{border:0;background:transparent;box-shadow:none;overflow:visible}
+  table.responsiveTable,table.responsiveTable thead,table.responsiveTable tbody,table.responsiveTable tr,table.responsiveTable td{display:block;min-width:0;width:100%}
+  table.responsiveTable thead{display:none}
+  table.responsiveTable tr{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;padding:8px;box-shadow:var(--shadow)}
+  table.responsiveTable td{border:0;padding:8px 6px}
+  table.responsiveTable td::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:900}
+  table.responsiveTable td.actionsCell::before{display:none}
+  .tableActions{max-width:none}
+  .inlineSelect{max-width:100%;width:100%;margin:0 0 6px}
+  .calendar,.calendar.monthView{display:grid;grid-template-columns:1fr;overflow:visible}
+  .dayCol,.monthCol{min-height:0}
+  .agendaControls{justify-content:flex-start;margin-top:10px}
+  .formGrid{grid-template-columns:1fr;padding:14px}
+  .modalBox{width:96vw;max-height:94vh;border-radius:16px}
+  .modalHeader{padding:12px 14px}
+  .modalActions{justify-content:flex-start;padding:0 14px 14px}
+}

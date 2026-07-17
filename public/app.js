@@ -680,7 +680,7 @@ function renderContactDetail(cliente) {
     <div class="contactSection">
       <h3>Agenda de contactos</h3>
       <div class="contactTableWrap compact">
-        <table class="contactTable compactContactTable">
+        <table class="contactTable compactContactTable responsiveTable">
           <thead><tr><th>Rol</th><th>Nombre</th><th>Ubicacion</th><th>Contacto</th><th></th></tr></thead>
           <tbody>${agendaRows.length ? agendaRows.map(contactAgendaRow).join('') : '<tr><td colspan="5" class="muted">Sin contactos cargados.</td></tr>'}</tbody>
         </table>
@@ -747,11 +747,11 @@ function contactLocation(item) {
 
 function contactAgendaRow(row) {
   return `<tr>
-    <td><span class="badge blue">${esc(row.rol)}</span></td>
-    <td><b>${esc(row.nombre || '-')}</b></td>
-    <td>${esc(row.ubicacion || '-')}</td>
-    <td><div class="quickLinks">${quickLinks(row.telefono, row.whatsapp, row.email) || '<span class="muted">Sin datos</span>'}</div></td>
-    <td>${row.action || ''}</td>
+    <td data-label="Rol"><span class="badge blue">${esc(row.rol)}</span></td>
+    <td data-label="Nombre"><b>${esc(row.nombre || '-')}</b></td>
+    <td data-label="Ubicacion">${esc(row.ubicacion || '-')}</td>
+    <td data-label="Contacto"><div class="quickLinks">${quickLinks(row.telefono, row.whatsapp, row.email) || '<span class="muted">Sin datos</span>'}</div></td>
+    <td class="actionsCell" data-label="Acciones"><div class="tableActions">${row.action || ''}</div></td>
   </tr>`;
 }
 
@@ -909,7 +909,7 @@ function renderFacturas() {
       `).join('') || '<span class="muted">No hay pendientes de facturar.</span>'}</div>
     </div>
     <div class="tableWrap">
-      <table class="invoiceTable">
+      <table class="invoiceTable responsiveTable">
         <thead><tr><th>Factura</th><th>Cliente</th><th>Asociado</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>${rows.length ? rows.map(facturaRow).join('') : '<tr><td colspan="6" class="muted">Sin facturas cargadas.</td></tr>'}</tbody>
       </table>
@@ -947,16 +947,16 @@ function pendingInvoiceTargets() {
 function facturaRow(f) {
   const linked = facturaLinkedText(f);
   return `<tr>
-    <td><b>${esc(f.Factura_Nro || f.ID)}</b><small>${esc(f.Fecha || '')}</small></td>
-    <td>${esc(f.Cliente_Nombre || '-')}</td>
-    <td>${linked}</td>
-    <td>${money(f.Importe || 0)}</td>
-    <td><span class="badge ${f.Estado === 'Cobrada' ? 'ok' : 'warn'}">${esc(f.Estado || 'Pendiente de cobro')}</span></td>
-    <td>
+    <td data-label="Factura"><b>${esc(f.Factura_Nro || f.ID)}</b><small>${esc(f.Fecha || '')}</small></td>
+    <td data-label="Cliente">${esc(f.Cliente_Nombre || '-')}</td>
+    <td data-label="Asociado">${linked}</td>
+    <td data-label="Importe">${money(f.Importe || 0)}</td>
+    <td data-label="Estado"><span class="badge ${f.Estado === 'Cobrada' ? 'ok' : 'warn'}">${esc(f.Estado || 'Pendiente de cobro')}</span></td>
+    <td class="actionsCell" data-label="Acciones"><div class="tableActions">
       <button class="secondaryBtn" onclick="openFacturaDetalleModal('${f.ID}')">Ver</button>
       ${correoButtonForFactura(f)}
       ${f.Estado !== 'Cobrada' ? `<button class="secondaryBtn" onclick="marcarFacturaCobrada('${f.ID}')">Marcar cobrada</button>` : ''}
-    </td>
+    </div></td>
   </tr>`;
 }
 
@@ -1118,8 +1118,9 @@ function renderTable(id, rows, cols, actionFn) {
     table.innerHTML = '<tr><td>No hay datos cargados todavia.</td></tr>';
     return;
   }
+  table.classList.add('responsiveTable');
   table.innerHTML = `<thead><tr>${cols.map(c => `<th>${label(c)}</th>`).join('')}<th>Acciones</th></tr></thead><tbody>` +
-    rows.map(r => `<tr>${cols.map(c => `<td>${formatCell(c, r[c])}</td>`).join('')}<td>${actionFn ? actionFn(r) : ''}</td></tr>`).join('') + '</tbody>';
+    rows.map(r => `<tr>${cols.map(c => `<td data-label="${esc(label(c))}">${formatCell(c, r[c])}</td>`).join('')}<td class="actionsCell" data-label="Acciones"><div class="tableActions">${actionFn ? actionFn(r) : ''}</div></td></tr>`).join('') + '</tbody>';
 }
 
 function renderKanban() {
