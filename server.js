@@ -1515,10 +1515,8 @@ function emailBody(tipo, item, cliente, extra = {}) {
     : tipo === 'Factura saldo final' ? 'factura de saldo final'
     : tipo === 'Factura final de trabajo' || tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
-  const saldoText = extra.incluirSaldo && extra.billing
-    ? `\n\nResumen del presupuesto:\nTotal presupuestado: ${money(extra.billing.total)}\nFacturado acumulado: ${money(extra.billing.facturado)}\nSaldo restante estimado: ${money(extra.billing.saldo)}`
-    : '';
-  return `${saludo}\n\nAdjuntamos ${label} ${item.Factura_Nro || item.ID}.\n\nConcepto: ${cleanEmailText(item.Concepto || extra.detalle || '')}\nImporte de esta factura: ${money(item.Importe || 0)}${saldoText}\n\n${firma}`;
+  const detalle = cleanEmailText(item.Concepto || extra.facturaDetalle || extra.detalle || '');
+  return `${saludo}\n\nAdjuntamos ${label} ${item.Factura_Nro || item.ID} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalle}\nTotal de la factura: ${money(item.Importe || 0)}\n\n${firma}`;
 }
 
 function emailSubject(tipo, item, cliente) {
@@ -1542,7 +1540,6 @@ async function sendBusinessEmail(data) {
   const clienteId = item.Cliente_ID || presupuesto?.Cliente_ID || factura?.Cliente_ID || '';
   const cliente = clienteId ? findById(db, 'Clientes', clienteId) : null;
   const recipient = emailRecipient(db, cliente, presupuesto);
-  const billing = presupuestoBillingServer(db, presupuesto);
   const attachments = [];
 
   if ((tipo === 'Presupuesto' || data.Incluir_Presupuesto) && presupuesto) {
@@ -1553,7 +1550,7 @@ async function sendBusinessEmail(data) {
     attachments.push({ driveUrl: factura.Drive_URL });
   }
 
-  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, destinatario: recipient.name, incluirSaldo: data.Incluir_Saldo, billing }));
+  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, destinatario: recipient.name }));
   const email = {
     to: data.Para || recipient.email || '',
     cc: data.CC || '',

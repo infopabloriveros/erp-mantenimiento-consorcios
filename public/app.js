@@ -1068,7 +1068,6 @@ function openCorreoModal(preset = {}) {
       ${field('Asunto', 'text', null, 'full', draft.subject)}
       <div class="field full"><label>Detalle</label><textarea id="Detalle" data-name="Detalle">${esc(draft.body)}</textarea></div>
       <label class="checkLine full"><input id="Incluir_Presupuesto" data-name="Incluir_Presupuesto" type="checkbox" ${draft.includeBudget ? 'checked' : ''}> Adjuntar tambien el presupuesto vinculado</label>
-      <label class="checkLine full"><input id="Incluir_Saldo" data-name="Incluir_Saldo" type="checkbox" ${draft.includeBalance ? 'checked' : ''}> Incluir total, facturado y saldo restante</label>
     </div><div class="modalActions"><button onclick="enviarCorreo()">Enviar correo</button></div>`);
   document.getElementById('Tipo')?.addEventListener('change', updateCorreoDraft);
 }
@@ -1095,18 +1094,13 @@ function correoDraft(tipo, presupuestoId, facturaId) {
     : tipo === 'Factura saldo final' ? 'factura de saldo final'
     : tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
-  const total = Number(presupuesto?.Total || factura?.Importe || 0);
-  const facturado = (state.facturas || [])
-    .filter(f => f.Presupuesto_ID && f.Presupuesto_ID === presupuesto?.ID && f.Estado !== 'Anulada')
-    .reduce((acc, f) => acc + Number(f.Importe || 0), 0);
-  const saldo = Math.max(total - facturado, 0);
-  const saldoText = presupuesto ? `\n\nResumen del presupuesto:\nTotal presupuestado: ${money(total)}\nFacturado acumulado: ${money(facturado)}\nSaldo restante estimado: ${money(saldo)}` : '';
+  const detalleFactura = factura?.Concepto || presupuesto?.Detalle_Servicio || '';
   return {
     to,
     subject: `${tipo} ${factura?.Factura_Nro || factura?.ID || ''} - ${name}`.trim(),
-    body: `Estimado/a:\n\nAdjuntamos ${label} ${factura?.Factura_Nro || factura?.ID || ''}.\n\nConcepto: ${factura?.Concepto || presupuesto?.Detalle_Servicio || ''}\nImporte de esta factura: ${money(factura?.Importe || 0)}${saldoText}\n\nSaludos.\nPablo Gonzalez Construcciones`,
+    body: `Estimado/a:\n\nAdjuntamos ${label} ${factura?.Factura_Nro || factura?.ID || ''} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalleFactura}\nTotal de la factura: ${money(factura?.Importe || 0)}\n\nSaludos.\nPablo Gonzalez Construcciones`,
     includeBudget: ['Factura adelanto', 'Factura cuota'].includes(tipo) && !!presupuesto,
-    includeBalance: !!presupuesto
+    includeBalance: false
   };
 }
 
@@ -1127,8 +1121,6 @@ function updateCorreoDraft() {
   setVal('Detalle', draft.body);
   const incluir = document.getElementById('Incluir_Presupuesto');
   if (incluir) incluir.checked = draft.includeBudget;
-  const saldo = document.getElementById('Incluir_Saldo');
-  if (saldo) saldo.checked = draft.includeBalance;
 }
 
 async function enviarCorreo() {
