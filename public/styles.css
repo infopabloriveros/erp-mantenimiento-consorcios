@@ -135,6 +135,11 @@ td.actionsCell{min-width:210px}
 .rowMenuPanel button,.rowMenuPanel select{width:100%;margin:0;text-align:left}
 .rowMenuPanel .inlineSelect{max-width:none}
 .actionsCell{white-space:nowrap}
+.clientActions .rowMenu,.taskActions .rowMenu,.agendaActions .rowMenu{width:100%}
+.clientActions .rowMenu summary,.taskActions .rowMenu summary,.agendaActions .rowMenu summary{width:100%;justify-content:space-between}
+.clientActions .rowMenuPanel,.taskActions .rowMenuPanel,.agendaActions .rowMenuPanel{background:#f8fafc}
+.quickLinks .rowMenu summary{min-height:28px;padding:6px 8px;font-size:11px}
+.quickLinks .rowMenuPanel{min-width:150px}
 .adminContactGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .adminDataItem{border-radius:11px;padding:8px 9px}
 .adminCount{min-width:76px;border-radius:12px;padding:8px}

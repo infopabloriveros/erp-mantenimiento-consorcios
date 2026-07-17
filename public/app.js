@@ -541,12 +541,12 @@ function clientCard(c) {
       <p>${esc(c.Direccion || 'Sin direccion')}</p>
       <small class="${c.CUIT_DNI ? '' : 'missingData'}">${esc(c.Documento_Tipo || 'CUIT/DNI')}: ${esc(c.CUIT_DNI || 'Pendiente')}</small>
     </div>
-    <div class="clientActions">
-      <button class="secondaryBtn" onclick="openClienteDetalleModal('${c.ID}')">Ver</button>
-      <button class="secondaryBtn" onclick="openClienteModal('${c.ID}')">Editar</button>
-      ${isConsorcio ? `<button class="secondaryBtn" onclick="selectedContactClientId='${c.ID}';document.querySelector('[data-view=contactos]').click()">Contactos</button>` : ''}
-      <button class="dangerBtn" onclick="deleteRow('Clientes','${c.ID}')">Eliminar</button>
-    </div>
+    <div class="clientActions">${actionMenu([
+      `<button class="secondaryBtn" onclick="openClienteDetalleModal('${c.ID}')">Ver detalle</button>`,
+      `<button class="secondaryBtn" onclick="openClienteModal('${c.ID}')">Editar</button>`,
+      isConsorcio ? `<button class="secondaryBtn" onclick="selectedContactClientId='${c.ID}';document.querySelector('[data-view=contactos]').click()">Contactos</button>` : '',
+      `<button class="dangerBtn" onclick="deleteRow('Clientes','${c.ID}')">Eliminar</button>`
+    ])}</div>
   </article>`;
 }
 
@@ -697,10 +697,10 @@ function administracionCard(ad) {
       <div class="adminLinkedList">
         ${linkedConsorcios.length ? linkedConsorcios.map(c => `<button onclick="openAdminModal('${c.ID}')">${esc(c.Nombre || c.ID)}</button>`).join('') : '<span class="muted">Sin consorcios vinculados.</span>'}
       </div>
-      <div class="clientActions">
-        <button class="secondaryBtn" onclick="openAdministracionModal('${ad.ID}')">Editar</button>
-        <button class="dangerBtn" onclick="deleteRow('Administraciones','${ad.ID}')">Eliminar</button>
-      </div>
+      <div class="clientActions">${actionMenu([
+        `<button class="secondaryBtn" onclick="openAdministracionModal('${ad.ID}')">Editar</button>`,
+        `<button class="dangerBtn" onclick="deleteRow('Administraciones','${ad.ID}')">Eliminar</button>`
+      ])}</div>
     </article>
   `;
 }
@@ -725,10 +725,12 @@ function renderContactDetail(cliente) {
         <p>${esc(cliente.Tipo || '')} - ${esc(cliente.Direccion || 'Sin direccion')}</p>
         <div class="quickLinks">${quickLinks(cliente.Telefono, cliente.Whatsapp, cliente.Email)}</div>
       </div>
-      <div class="agendaActions">
-        <button class="secondaryBtn" onclick="openClienteModal('${cliente.ID}')">Editar cliente</button>
-        ${cliente.Tipo === 'Consorcio' ? `<button class="secondaryBtn" onclick="openAdministracionModal()">Alta administracion</button><button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Asignar administracion</button><button onclick="openContactoModal('${cliente.ID}')">Nuevo contacto</button>` : `<button onclick="openContactoModal('${cliente.ID}')">Nuevo contacto</button>`}
-      </div>
+      <div class="agendaActions">${actionMenu([
+        `<button class="secondaryBtn" onclick="openClienteModal('${cliente.ID}')">Editar cliente</button>`,
+        cliente.Tipo === 'Consorcio' ? `<button class="secondaryBtn" onclick="openAdministracionModal()">Alta administracion</button>` : '',
+        cliente.Tipo === 'Consorcio' ? `<button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Asignar administracion</button>` : '',
+        `<button onclick="openContactoModal('${cliente.ID}')">Nuevo contacto</button>`
+      ])}</div>
     </div>
     <div class="contactSection">
       <h3>Agenda de contactos</h3>
@@ -742,7 +744,7 @@ function renderContactDetail(cliente) {
     <div class="contactSection">
       <h3>Administracion</h3>
       <div class="contactCards">
-        ${admins.length ? admins.map(a => contactPersonCard('Administrador', a.Administracion || a.Contacto, a.Cargo || a.Contacto, a.Telefono, a.Whatsapp, a.Email, `<button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Editar</button>`)).join('') : '<div class="emptyBox">Sin administrador cargado.</div>'}
+        ${admins.length ? admins.map(a => contactPersonCard('Administrador', a.Administracion || a.Contacto, a.Cargo || a.Contacto, a.Telefono, a.Whatsapp, a.Email, actionMenu([`<button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Editar</button>`]))).join('') : '<div class="emptyBox">Sin administrador cargado.</div>'}
       </div>
     </div>
     `;
@@ -762,7 +764,10 @@ function contactAgendaRows(cliente, admins, contactos, unidades) {
     telefono: a.Telefono,
     whatsapp: a.Whatsapp,
     email: a.Email,
-    action: `<button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Editar</button> <button class="dangerBtn" onclick="deleteRow('Administradores','${a.ID}')">Eliminar</button>`
+    action: actionMenu([
+      `<button class="secondaryBtn" onclick="openAdminModal('${cliente.ID}')">Editar</button>`,
+      `<button class="dangerBtn" onclick="deleteRow('Administradores','${a.ID}')">Eliminar</button>`
+    ])
   }));
   contactos.forEach(c => {
     if (contactRoleFilter !== 'Todos' && c.Rol !== contactRoleFilter) return;
@@ -773,7 +778,10 @@ function contactAgendaRows(cliente, admins, contactos, unidades) {
       telefono: c.Telefono,
       whatsapp: c.Whatsapp,
       email: c.Email,
-      action: `<button class="secondaryBtn" onclick="openContactoModal('${c.Cliente_ID}','${c.ID}')">Editar</button> <button class="dangerBtn" onclick="deleteRow('Contactos','${c.ID}')">Eliminar</button>`
+      action: actionMenu([
+        `<button class="secondaryBtn" onclick="openContactoModal('${c.Cliente_ID}','${c.ID}')">Editar</button>`,
+        `<button class="dangerBtn" onclick="deleteRow('Contactos','${c.ID}')">Eliminar</button>`
+      ])
     });
   });
   if (contactRoleFilter === 'Todos' || contactRoleFilter === 'Propietario') unidades.filter(u => u.Propietario).forEach(u => rows.push(legacyContactRow('Propietario', u, u.Propietario, u.Propietario_Tel, u.Propietario_Whatsapp, u.Propietario_Email)));
@@ -790,7 +798,10 @@ function legacyContactRow(rol, u, nombre, telefono, whatsapp, email) {
     telefono,
     whatsapp,
     email,
-    action: `<button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button> <button class="dangerBtn" onclick="deleteRow('Unidades','${u.ID}')">Eliminar</button>`
+    action: actionMenu([
+      `<button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button>`,
+      `<button class="dangerBtn" onclick="deleteRow('Unidades','${u.ID}')">Eliminar</button>`
+    ])
   };
 }
 
@@ -804,7 +815,7 @@ function contactAgendaRow(row) {
     <td data-label="Nombre"><b>${esc(row.nombre || '-')}</b></td>
     <td data-label="Ubicacion">${esc(row.ubicacion || '-')}</td>
     <td data-label="Contacto"><div class="quickLinks">${quickLinks(row.telefono, row.whatsapp, row.email) || '<span class="muted">Sin datos</span>'}</div></td>
-    <td class="actionsCell" data-label="Acciones"><div class="tableActions">${row.action || ''}</div></td>
+    <td class="actionsCell" data-label="Acciones">${row.action || ''}</td>
   </tr>`;
 }
 
@@ -817,7 +828,7 @@ function contactRecordCard(c) {
   return `<article class="unitContactCard">
     <div class="unitHead">
       <div><span>Ubicacion</span><b>${esc(ubicacion)}</b></div>
-      <button class="secondaryBtn" onclick="openContactoModal('${c.Cliente_ID}','${c.ID}')">Editar</button>
+      ${actionMenu([`<button class="secondaryBtn" onclick="openContactoModal('${c.Cliente_ID}','${c.ID}')">Editar</button>`])}
     </div>
     <div class="contactRoles singleRole">
       ${contactPersonCard(c.Rol || 'Contacto', c.Nombre, '', c.Telefono, c.Whatsapp, c.Email)}
@@ -837,7 +848,7 @@ function unitContactCard(u) {
   return `<article class="unitContactCard">
     <div class="unitHead">
       <div><span>Ubicacion</span><b>${esc(unitTitle)}</b></div>
-      <button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button>
+      ${actionMenu([`<button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button>`])}
     </div>
     <div class="contactRoles">
       ${roles.join('') || '<div class="emptyBox">Sin contactos para este filtro.</div>'}
@@ -1372,15 +1383,15 @@ function renderKanban() {
           <b>${esc(t.Titulo || 'Trabajo')}</b>
           <small>${esc(t.Cliente_Nombre || '')}<br>${esc(t.Direccion || '')} ${t.Unidad_Trabajo ? '- Unidad ' + esc(t.Unidad_Trabajo) : ''}</small>
           ${trabajoMoneySummary(t)}
-          <div class="taskActions">
-            <button class="secondaryBtn" onclick="openTrabajoDetalleModal('${t.ID}')">Ver</button>
-            <button class="secondaryBtn" onclick="openTrabajoModal('${t.ID}')">Editar</button>
-            ${billing.cerrado ? '<span class="badge ok">Trabajo cerrado</span>' : `
-              <button class="secondaryBtn" onclick="openAgendaTrabajoModal('${t.ID}')">Agenda</button>
-              <button class="secondaryBtn" onclick="openFacturaModal('', {trabajoId:'${t.ID}'})">Factura</button>
-              ${billing.pendienteFacturar === 0 && billing.saldoCobro === 0 ? `<button class="secondaryBtn" onclick="cerrarTrabajo('${t.ID}')">Cerrar</button>` : ''}
-            `}
-            <button class="dangerBtn" onclick="deleteRow('Trabajos','${t.ID}')">Eliminar</button>
+          <div class="taskActions">${billing.cerrado ? '<span class="badge ok">Trabajo cerrado</span>' : ''}
+            ${actionMenu([
+              `<button class="secondaryBtn" onclick="openTrabajoDetalleModal('${t.ID}')">Ver detalle</button>`,
+              `<button class="secondaryBtn" onclick="openTrabajoModal('${t.ID}')">Editar</button>`,
+              !billing.cerrado ? `<button class="secondaryBtn" onclick="openAgendaTrabajoModal('${t.ID}')">Agenda</button>` : '',
+              !billing.cerrado ? `<button class="secondaryBtn" onclick="openFacturaModal('', {trabajoId:'${t.ID}'})">Factura</button>` : '',
+              !billing.cerrado && billing.pendienteFacturar === 0 && billing.saldoCobro === 0 ? `<button class="secondaryBtn" onclick="cerrarTrabajo('${t.ID}')">Cerrar</button>` : '',
+              `<button class="dangerBtn" onclick="deleteRow('Trabajos','${t.ID}')">Eliminar</button>`
+            ])}
           </div>
         </div>`;
       }).join('') || '<small>Sin trabajos.</small>'}
@@ -1670,10 +1681,10 @@ function openAgendaConsorcio(clienteId) {
       <div>
         <p class="muted">Contactos internos del consorcio para eventualidades, avisos y coordinación de trabajos.</p>
       </div>
-      <div class="agendaActions">
-        <button onclick="openAdminModal('${clienteId}')">Administracion</button>
-        <button onclick="openUnidadModal('${clienteId}')">Nuevo contacto</button>
-      </div>
+      <div class="agendaActions">${actionMenu([
+        `<button onclick="openAdminModal('${clienteId}')">Administracion</button>`,
+        `<button onclick="openUnidadModal('${clienteId}')">Nuevo contacto</button>`
+      ])}</div>
     </div>
     <div class="agendaSearch">
       <input id="contactSearch" placeholder="Buscar unidad, propietario, inquilino, encargado, telefono..." oninput="filterAgendaContacts('${clienteId}')">
@@ -1684,12 +1695,12 @@ function openAgendaConsorcio(clienteId) {
           <span>Administracion</span>
           <b>${esc(a.Administracion || 'Sin nombre')}</b>
           <small>${esc(a.Contacto || '')}</small>
-          <div class="quickLinks">${quickLinks(a.Telefono, a.Whatsapp, a.Email)}<button class="secondaryBtn" onclick="openAdminModal('${clienteId}')">Editar</button></div>
+          <div class="quickLinks">${quickLinks(a.Telefono, a.Whatsapp, a.Email)}${actionMenu([`<button class="secondaryBtn" onclick="openAdminModal('${clienteId}')">Editar</button>`])}</div>
         </div>
       `).join('') : '<div class="emptyBox">Sin administrador cargado.</div>'}
     </div>
     <div class="contactTableWrap">
-      <table class="contactTable">
+      <table class="contactTable responsiveTable">
         <thead><tr><th>Unidad</th><th>Propietario</th><th>Inquilino</th><th>Encargado</th><th></th></tr></thead>
         <tbody id="agendaContacts">${renderAgendaUnitRows(unidades)}</tbody>
       </table>
@@ -1701,11 +1712,14 @@ function renderAgendaUnitRows(unidades) {
   if (!unidades.length) return '<tr><td colspan="5" class="muted">Sin unidades cargadas.</td></tr>';
   return unidades.map(u => `
     <tr class="unitContact" data-search="${esc(`${u.Unidad} ${u.Piso} ${u.Depto} ${u.Propietario} ${u.Propietario_Tel} ${u.Propietario_Whatsapp} ${u.Propietario_Email} ${u.Inquilino} ${u.Inquilino_Tel} ${u.Inquilino_Whatsapp} ${u.Inquilino_Email} ${u.Encargado} ${u.Encargado_Tel} ${u.Encargado_Whatsapp}`.toLowerCase())}">
-      <td><b>${esc(u.Unidad || '-')}</b><small>${esc([u.Piso && `Piso ${u.Piso}`, u.Depto && `Depto ${u.Depto}`].filter(Boolean).join(' - '))}</small></td>
-      <td>${personLine(u.Propietario, u.Propietario_Tel, u.Propietario_Whatsapp, u.Propietario_Email)}</td>
-      <td>${personLine(u.Inquilino, u.Inquilino_Tel, u.Inquilino_Whatsapp, u.Inquilino_Email)}</td>
-      <td>${personLine(u.Encargado, u.Encargado_Tel, u.Encargado_Whatsapp, '')}</td>
-      <td><button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button> <button class="dangerBtn" onclick="deleteRow('Unidades','${u.ID}')">Eliminar</button></td>
+      <td data-label="Unidad"><b>${esc(u.Unidad || '-')}</b><small>${esc([u.Piso && `Piso ${u.Piso}`, u.Depto && `Depto ${u.Depto}`].filter(Boolean).join(' - '))}</small></td>
+      <td data-label="Propietario">${personLine(u.Propietario, u.Propietario_Tel, u.Propietario_Whatsapp, u.Propietario_Email)}</td>
+      <td data-label="Inquilino">${personLine(u.Inquilino, u.Inquilino_Tel, u.Inquilino_Whatsapp, u.Inquilino_Email)}</td>
+      <td data-label="Encargado">${personLine(u.Encargado, u.Encargado_Tel, u.Encargado_Whatsapp, '')}</td>
+      <td class="actionsCell" data-label="Acciones">${actionMenu([
+        `<button class="secondaryBtn" onclick="openUnidadModal('${u.Cliente_ID}','${u.ID}')">Editar</button>`,
+        `<button class="dangerBtn" onclick="deleteRow('Unidades','${u.ID}')">Eliminar</button>`
+      ])}</td>
     </tr>
   `).join('');
 }
