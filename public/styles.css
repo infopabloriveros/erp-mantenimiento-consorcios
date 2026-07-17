@@ -93,6 +93,10 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .hint{border-radius:12px;padding:10px 12px;font-size:12px;margin-bottom:12px;background:#eef6ff}
 .card,.kpiCard,.reportPanel,.dashboardToolbar,.clientCard,.adminCard,.contactSide,.contactHero,.contactSection,.billingPanel,.historialBox,.tableWrap,.agendaToolbar,.dayCol,.monthCol{border-radius:var(--radius);box-shadow:var(--shadow)}
 .dashboardToolbar,.reportPanel,.clientCard,.adminCard,.contactHero,.contactSection,.billingPanel,.historialBox{padding:14px}
+.invoiceHub{align-items:center}
+.invoiceHub h3{font-size:18px}
+.invoiceHub p{font-size:13px}
+.invoiceHub .billingList button{max-width:360px;text-align:left;white-space:normal;line-height:1.25}
 .dashboardKpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .kpiCard .value,.card .value{font-size:24px}
 .portfolioStrip{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
@@ -115,6 +119,22 @@ td small{display:block;color:var(--muted);margin-top:3px}
 td.actionsCell{min-width:210px}
 .tableActions{max-width:360px}
 .detailPreview{min-width:180px;max-width:320px}
+.detailDrop{max-width:340px}
+.detailDrop summary{cursor:pointer;color:#334155;font-weight:750;line-height:1.35;list-style:none}
+.detailDrop summary::-webkit-details-marker{display:none}
+.detailDrop summary::after{content:"Ver detalle";display:inline-block;margin-left:6px;color:var(--accent);font-size:11px;font-weight:900}
+.detailDrop[open] summary::after{content:"Ocultar"}
+.detailDrop p{margin:8px 0 0;color:#334155;line-height:1.45}
+.rowMenu{display:inline-block}
+.rowMenu summary{list-style:none;display:inline-flex;align-items:center;gap:6px;background:#e8edf3;color:#0f172a;border-radius:10px;padding:8px 11px;font-size:12px;font-weight:900;min-height:34px;cursor:pointer;user-select:none}
+.rowMenu summary::-webkit-details-marker{display:none}
+.rowMenu summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-top:-3px}
+.rowMenu[open] summary{background:#dbeafe;color:#1d4ed8}
+.rowMenu[open] summary::after{transform:rotate(225deg);margin-top:3px}
+.rowMenuPanel{display:grid;gap:6px;min-width:190px;margin-top:7px;padding:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:none}
+.rowMenuPanel button,.rowMenuPanel select{width:100%;margin:0;text-align:left}
+.rowMenuPanel .inlineSelect{max-width:none}
+.actionsCell{white-space:nowrap}
 .adminContactGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .adminDataItem{border-radius:11px;padding:8px 9px}
 .adminCount{min-width:76px;border-radius:12px;padding:8px}
@@ -164,7 +184,9 @@ td.actionsCell{min-width:210px}
   .brand img{width:48px;height:48px;max-height:48px;margin:0;border-radius:9px}
   .brand b{font-size:14px}
   .brand span{font-size:9px;margin-top:3px}
+  .sidebar{white-space:nowrap;overflow-x:auto;box-shadow:0 10px 30px rgba(15,23,42,.18)}
   .sidebar .nav,.logoutBtn{display:inline-flex;width:auto;vertical-align:top;margin:0 4px 6px 0;padding:8px 10px}
+  .sidebar::-webkit-scrollbar{height:0}
   .topbar{display:block;margin-bottom:14px}
   h1{font-size:24px}
   .topbar p{font-size:12px}
@@ -172,6 +194,8 @@ td.actionsCell{min-width:210px}
   .sectionHead{align-items:flex-start;flex-direction:column}
   .sectionHead button{align-self:flex-start}
   .dashboardToolbar,.clientToolbar,.agendaToolbar,.billingPanel,.contactHero{display:block}
+  .invoiceHub .billingList{justify-content:flex-start;margin-top:10px}
+  .invoiceHub .billingList button{max-width:none;width:100%}
   .dashboardKpis,.portfolioStrip,.clientGrid,.adminGrid,.adminContactGrid,.contactsLayout,.contactCards,.unitContactGrid,.contactRoles,.historyGrid,.compareGrid{grid-template-columns:1fr}
   .contactsLayout{display:block}
   .contactSide{margin-bottom:12px}
@@ -188,6 +212,11 @@ td.actionsCell{min-width:210px}
   table.responsiveTable td::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:900}
   table.responsiveTable td.actionsCell::before{display:none}
   .tableActions{max-width:none}
+  .rowMenu{display:block}
+  .rowMenu summary{width:100%;justify-content:space-between}
+  .rowMenuPanel{position:static;margin-top:7px;box-shadow:none;min-width:0;background:#f8fafc}
+  .rowMenuPanel button,.rowMenuPanel select{text-align:center}
+  .detailDrop{max-width:none}
   .inlineSelect{max-width:100%;width:100%;margin:0 0 6px}
   .calendar,.calendar.monthView{display:grid;grid-template-columns:1fr;overflow:visible}
   .dayCol,.monthCol{min-height:0}

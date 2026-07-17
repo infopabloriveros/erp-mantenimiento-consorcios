@@ -24,8 +24,23 @@ window.addEventListener('load', async () => {
   bindAuth();
   bindNav();
   bindGlobalSearch();
+  bindCompactMenus();
   await checkSession();
 });
+
+function bindCompactMenus() {
+  document.addEventListener('toggle', event => {
+    const menu = event.target;
+    if (!menu.matches?.('.rowMenu') || !menu.open) return;
+    document.querySelectorAll('.rowMenu[open]').forEach(other => {
+      if (other !== menu) other.open = false;
+    });
+  }, true);
+  document.addEventListener('click', event => {
+    if (event.target.closest?.('.rowMenu')) return;
+    document.querySelectorAll('.rowMenu[open]').forEach(menu => { menu.open = false; });
+  });
+}
 
 async function api(url, options = {}) {
   const { loadingMessage, silentLoading, ...fetchOptions } = options;
@@ -417,13 +432,13 @@ function formatRange(range) {
 function renderServicios() {
   const cols = ['Fecha', 'Cliente_Nombre', 'Tipo', 'Titulo', 'Estado', 'Facturacion', 'Saldo'];
   const rows = (state.servicios || []).map(s => ({ ...s, Facturacion: serviceBillingLabel(s) }));
-  renderTable('serviciosTable', rows, cols, r => `
-    <button class="secondaryBtn" onclick="openServicioDetalleModal('${r.ID}')">Ver</button>
-    <button class="secondaryBtn" onclick="openServicioModal('${r.ID}')">Editar</button>
-    ${invoiceActionForService(r)}
-    <button class="secondaryBtn" onclick="openPresupuestoDesdeServicio('${r.ID}')">Presupuestar</button>
-    <button class="dangerBtn" onclick="deleteRow('Servicios','${r.ID}')">Eliminar</button>
-  `);
+  renderTable('serviciosTable', rows, cols, r => actionMenu([
+    `<button class="secondaryBtn" onclick="openServicioDetalleModal('${r.ID}')">Ver detalle</button>`,
+    `<button class="secondaryBtn" onclick="openServicioModal('${r.ID}')">Editar</button>`,
+    invoiceActionForService(r),
+    `<button class="secondaryBtn" onclick="openPresupuestoDesdeServicio('${r.ID}')">Presupuestar</button>`,
+    `<button class="dangerBtn" onclick="deleteRow('Servicios','${r.ID}')">Eliminar</button>`
+  ]));
 }
 
 function invoiceActionForService(s) {
@@ -675,7 +690,7 @@ function administracionCard(ad) {
       <div class="adminContactGrid">
         ${adminDataItem('Contacto', ad.Contacto || 'Pendiente')}
         ${adminDataItem('Telefono', ad.Telefono ? `<a href="tel:${esc(phoneHref(ad.Telefono))}">${esc(ad.Telefono)}</a>` : 'Pendiente')}
-        ${adminDataItem('WhatsApp', ad.Whatsapp ? `<a target="_blank" href="https://wa.me/${phoneDigits(ad.Whatsapp)}">${esc(ad.Whatsapp)}</a>` : 'Pendiente')}
+        ${adminDataItem('WhatsApp', ad.Whatsapp ? `<a target="_blank" href="https://wa.me/${whatsappDigits(ad.Whatsapp)}">${esc(ad.Whatsapp)}</a>` : 'Pendiente')}
         ${adminDataItem('Email', ad.Email ? `<a href="mailto:${esc(ad.Email)}">${esc(ad.Email)}</a>` : 'Pendiente')}
         ${ad.Direccion ? adminDataItem('Direccion', ad.Direccion) : ''}
       </div>
@@ -843,17 +858,17 @@ function contactPersonCard(role, name, subtitle, phone, whatsapp, email, actions
 function renderPresupuestos() {
   const cols = ['ID', 'Cliente_Nombre', 'Detalle_Servicio', 'Total', 'Estado', 'Agenda', 'Facturacion'];
   const rows = (state.presupuestos || []).map(p => ({ ...p, Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) }));
-  renderTable('presupuestosTable', rows, cols, r => `
-    ${presupuestoEstadoControl(r)}
-    ${presupuestoLifecycleActions(r)}
-    ${presupuestoAgendaAction(r)}
-    <button class="secondaryBtn" onclick="window.open('/api/presupuestos/${r.ID}/pdf', '_blank')">PDF</button>
-    <button class="secondaryBtn" onclick="openPresupuestoModal('${r.ID}')">Editar</button>
-    ${correoButtonForPresupuesto(r)}
-    ${whatsappButtonForPresupuesto(r)}
-    ${invoiceActionForPresupuesto(r)}
-    <button class="dangerBtn" onclick="deleteRow('Presupuestos','${r.ID}')">Eliminar</button>
-  `);
+  renderTable('presupuestosTable', rows, cols, r => actionMenu([
+    presupuestoEstadoControl(r),
+    presupuestoLifecycleActions(r),
+    presupuestoAgendaAction(r),
+    `<button class="secondaryBtn" onclick="window.open('/api/presupuestos/${r.ID}/pdf', '_blank')">Ver PDF</button>`,
+    `<button class="secondaryBtn" onclick="openPresupuestoModal('${r.ID}')">Editar</button>`,
+    correoButtonForPresupuesto(r),
+    whatsappButtonForPresupuesto(r),
+    invoiceActionForPresupuesto(r),
+    `<button class="dangerBtn" onclick="deleteRow('Presupuestos','${r.ID}')">Eliminar</button>`
+  ]));
 }
 
 function presupuestoEstadoControl(row) {
@@ -928,7 +943,7 @@ function presupuestoBillingLabel(p) {
 
 function renderCobros() {
   const cols = ['ID', 'Fecha', 'Cliente_ID', 'Servicio_ID', 'Trabajo_ID', 'Presupuesto_ID', 'Tipo_Cobro', 'Concepto', 'Medio_Pago', 'Importe', 'Facturado', 'Factura_Nro', 'Factura_URL'];
-  renderTable('cobrosTable', state.cobros, cols, r => `<button class="dangerBtn" onclick="deleteRow('Cobros','${r.ID}')">Eliminar</button>`);
+  renderTable('cobrosTable', state.cobros, cols, r => actionMenu([`<button class="dangerBtn" onclick="deleteRow('Cobros','${r.ID}')">Eliminar</button>`]));
 }
 
 function renderFacturas() {
@@ -1000,12 +1015,12 @@ function facturaRow(f) {
     <td data-label="Asociado">${linked}</td>
     <td data-label="Importe">${money(f.Importe || 0)}</td>
     <td data-label="Estado"><span class="badge ${f.Estado === 'Cobrada' ? 'ok' : 'warn'}">${esc(f.Estado || 'Pendiente de cobro')}</span></td>
-    <td class="actionsCell" data-label="Acciones"><div class="tableActions">
-      <button class="secondaryBtn" onclick="openFacturaDetalleModal('${f.ID}')">Ver</button>
-      ${correoButtonForFactura(f)}
-      ${whatsappButtonForFactura(f)}
-      ${f.Estado !== 'Cobrada' ? `<button class="secondaryBtn" onclick="marcarFacturaCobrada('${f.ID}')">Marcar cobrada</button>` : ''}
-    </div></td>
+    <td class="actionsCell" data-label="Acciones">${actionMenu([
+      `<button class="secondaryBtn" onclick="openFacturaDetalleModal('${f.ID}')">Ver detalle</button>`,
+      correoButtonForFactura(f),
+      whatsappButtonForFactura(f),
+      f.Estado !== 'Cobrada' ? `<button class="secondaryBtn" onclick="marcarFacturaCobrada('${f.ID}')">Marcar cobrada</button>` : ''
+    ])}</td>
   </tr>`;
 }
 
@@ -1050,15 +1065,15 @@ function renderCorreos() {
       <span><b>${rows.filter(c => String(c.Tipo || '').startsWith('Factura')).length}</b> facturas</span>
     </div>
     <div class="tableWrap">
-      <table>
+      <table class="responsiveTable">
         <thead><tr><th>Fecha</th><th>Para</th><th>Asunto</th><th>Tipo</th><th>Asociado</th></tr></thead>
         <tbody>${rows.length ? rows.slice().reverse().map(c => `
           <tr>
-            <td>${esc(c.Fecha || '')}</td>
-            <td>${esc(c.Para || '')}</td>
-            <td>${esc(c.Asunto || '')}</td>
-            <td>${esc(c.Tipo || '')}</td>
-            <td>${[c.Presupuesto_ID && `Presupuesto ${esc(c.Presupuesto_ID)}`, c.Factura_ID && `Factura ${esc(c.Factura_ID)}`].filter(Boolean).join('<br>') || '-'}</td>
+            <td data-label="Fecha">${esc(c.Fecha || '')}</td>
+            <td data-label="Para">${esc(c.Para || '')}</td>
+            <td data-label="Asunto">${esc(c.Asunto || '')}</td>
+            <td data-label="Tipo">${esc(c.Tipo || '')}</td>
+            <td data-label="Asociado">${[c.Presupuesto_ID && `Presupuesto ${esc(c.Presupuesto_ID)}`, c.Factura_ID && `Factura ${esc(c.Factura_ID)}`].filter(Boolean).join('<br>') || '-'}</td>
           </tr>`).join('') : '<tr><td colspan="5" class="muted">Todavia no hay correos enviados.</td></tr>'}</tbody>
       </table>
     </div>`;
@@ -1320,7 +1335,16 @@ async function enviarCorreo() {
 
 function renderGastos() {
   const cols = ['ID', 'Fecha', 'Categoria', 'Proveedor', 'Concepto', 'Medio_Pago', 'Importe'];
-  renderTable('gastosTable', state.gastos, cols, r => `<button class="dangerBtn" onclick="deleteRow('Gastos','${r.ID}')">Eliminar</button>`);
+  renderTable('gastosTable', state.gastos, cols, r => actionMenu([`<button class="dangerBtn" onclick="deleteRow('Gastos','${r.ID}')">Eliminar</button>`]));
+}
+
+function actionMenu(items, labelText = 'Acciones') {
+  const actions = (items || []).filter(Boolean).join('');
+  if (!actions.trim()) return '';
+  return `<details class="rowMenu">
+    <summary>${esc(labelText)}</summary>
+    <div class="rowMenuPanel">${actions}</div>
+  </details>`;
 }
 
 function renderTable(id, rows, cols, actionFn) {
@@ -2462,7 +2486,13 @@ function openModal(title, body) { document.getElementById('modalTitle').textCont
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3500); }
 function showError(err) { showToast('Error: ' + (err.message || err)); console.error(err); }
-function formatCell(col, val) { if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio') return `<span class="detailPreview" title="${esc(val || '')}">${esc(shortText(val || '', 90))}</span>`; if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
+function formatCell(col, val) { if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio' || col === 'Detalle' || col === 'Concepto') return detailPreview(val); if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
+function detailPreview(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (text.length <= 95) return `<span class="detailPreview">${esc(text)}</span>`;
+  return `<details class="detailDrop"><summary>${esc(shortText(text, 95))}</summary><p>${esc(text)}</p></details>`;
+}
 function label(s) { return String(s).replaceAll('_', ' '); }
 function money(n) { return '$ ' + Number(n || 0).toLocaleString('es-AR'); }
 function shortText(value, max) { const text = String(value || '').replace(/\s+/g, ' ').trim(); return text.length > max ? text.slice(0, max - 1) + '...' : text; }
