@@ -17,6 +17,8 @@ let contactSearch = '';
 let selectedContactClientId = '';
 let contactRoleFilter = 'Todos';
 let currentUser = '';
+let loadingCount = 0;
+let loadingTimer = null;
 
 window.addEventListener('load', async () => {
   bindAuth();
@@ -26,14 +28,50 @@ window.addEventListener('load', async () => {
 });
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
-  const result = await response.json().catch(() => ({ ok: false, message: 'Respuesta invalida del servidor' }));
-  if (response.status === 401) {
-    showLogin();
-    throw new Error(result.message || 'Necesitas iniciar sesion.');
+  const { loadingMessage, silentLoading, ...fetchOptions } = options;
+  const loadingLabel = loadingMessage || apiLoadingMessage(url, fetchOptions);
+  if (!silentLoading) showLoading(loadingLabel);
+  try {
+    const response = await fetch(url, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(fetchOptions.headers || {}) }, ...fetchOptions });
+    const result = await response.json().catch(() => ({ ok: false, message: 'Respuesta invalida del servidor' }));
+    if (response.status === 401) {
+      showLogin();
+      throw new Error(result.message || 'Necesitas iniciar sesion.');
+    }
+    if (!result.ok) throw new Error(result.message || 'Error inesperado');
+    return result.data;
+  } finally {
+    if (!silentLoading) hideLoading();
   }
-  if (!result.ok) throw new Error(result.message || 'Error inesperado');
-  return result.data;
+}
+
+function apiLoadingMessage(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (url.includes('/auth/login')) return 'Iniciando sesion...';
+  if (url.includes('/auth/logout')) return 'Cerrando sesion...';
+  if (url.includes('/initial-data')) return 'Cargando datos del ERP...';
+  if (url.includes('/correos')) return 'Enviando correo...';
+  if (url.includes('/facturas')) return 'Guardando factura...';
+  if (url.includes('/presupuestos') && method === 'POST') return 'Generando presupuesto y PDF...';
+  if (method === 'DELETE') return 'Eliminando registro...';
+  if (method !== 'GET') return 'Guardando cambios...';
+  return 'Cargando informacion...';
+}
+
+function showLoading(message = 'Procesando...') {
+  loadingCount += 1;
+  const overlay = document.getElementById('loadingOverlay');
+  const text = document.getElementById('loadingText');
+  if (text) text.textContent = message;
+  clearTimeout(loadingTimer);
+  loadingTimer = setTimeout(() => overlay?.classList.remove('hidden'), 250);
+}
+
+function hideLoading() {
+  loadingCount = Math.max(loadingCount - 1, 0);
+  if (loadingCount > 0) return;
+  clearTimeout(loadingTimer);
+  document.getElementById('loadingOverlay')?.classList.add('hidden');
 }
 
 function bindAuth() {
@@ -1820,7 +1858,7 @@ async function previewFacturaFile(file) {
     try {
       showToast('Leyendo factura...');
       const dataUrl = await readFileAsDataUrl(file);
-      const extracted = await api('/api/facturas/extract', { method: 'POST', body: JSON.stringify({ dataUrl, filename: file.name }) });
+      const extracted = await api('/api/facturas/extract', { method: 'POST', loadingMessage: 'Leyendo factura y detectando importe...', body: JSON.stringify({ dataUrl, filename: file.name }) });
       if (extracted.Punto_Venta) setVal('Punto_Venta', extracted.Punto_Venta);
       if (extracted.Numero) setVal('Numero', extracted.Numero);
       if (extracted.Factura_Nro) setVal('Factura_Nro', extracted.Factura_Nro);
@@ -2034,7 +2072,7 @@ function uploadFacturaToDrive(file, context) {
     ...context,
     dataUrl,
     filename: file.name
-  }) }));
+  }), loadingMessage: 'Subiendo archivo a Drive...' }));
 }
 
 function readFileAsDataUrl(file) {

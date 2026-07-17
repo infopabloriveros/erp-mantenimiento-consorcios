@@ -144,6 +144,12 @@ td.actionsCell{min-width:210px}
 .field textarea{min-height:78px}
 .modalActions{padding:0 18px 18px}
 .toast{border-radius:12px;font-size:13px}
+.loadingOverlay{position:fixed;inset:0;z-index:90;pointer-events:none;background:rgba(246,247,249,.32);backdrop-filter:blur(1px)}
+.loadingBox{position:absolute;right:22px;bottom:22px;display:flex;align-items:center;gap:12px;min-width:260px;max-width:min(380px,calc(100vw - 28px));background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 15px;box-shadow:0 18px 50px rgba(15,23,42,.18)}
+.loadingBox b{display:block;font-size:13px;color:var(--ink)}
+.loadingBox p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.loader{width:24px;height:24px;border-radius:50%;border:3px solid #dbeafe;border-top-color:var(--accent);animation:spin .8s linear infinite;flex:0 0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 @media(max-width:1180px){
   .dashboardKpis{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -190,4 +196,5 @@ td.actionsCell{min-width:210px}
   .modalBox{width:96vw;max-height:94vh;border-radius:16px}
   .modalHeader{padding:12px 14px}
   .modalActions{justify-content:flex-start;padding:0 14px 14px}
+  .loadingBox{left:14px;right:14px;bottom:14px;min-width:0}
 }
