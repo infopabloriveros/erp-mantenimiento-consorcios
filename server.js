@@ -7,7 +7,6 @@ const { execFileSync } = require('child_process');
 const { pathToFileURL } = require('url');
 const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
-const { PDFParse } = require('pdf-parse');
 const { TABLES, PREFIX } = require('./src/backend/models/schema');
 
 const app = express();
@@ -1077,6 +1076,7 @@ async function extractFacturaPdf(data) {
   if (!match) throw new Error('Archivo invalido.');
   const parsedName = parseFacturaInfo(data.filename || '');
   const buffer = Buffer.from(match[2], 'base64');
+  const { PDFParse } = require('pdf-parse');
   const parser = new PDFParse({ data: buffer });
   const parsed = await parser.getText();
   await parser.destroy();
