@@ -561,24 +561,18 @@ function pendingToInvoice(db, type, item) {
   }
   if (type === 'trabajo') {
     const facturado = billedAmount(db, f => f.Trabajo_ID === item.ID || (item.Presupuesto_ID && f.Presupuesto_ID === item.Presupuesto_ID));
-    return Math.max(num(item.Importe) - facturado, 0);
+    const presupuesto = item.Presupuesto_ID ? findById(db, 'Presupuestos', item.Presupuesto_ID) : null;
+    const adelanto = presupuesto ? num(presupuesto.Adelanto) : 0;
+    return Math.max(num(item.Importe) - adelanto - facturado, 0);
   }
   const facturado = billedAmount(db, f => f.Presupuesto_ID === item.ID);
-  return Math.max(num(item.Total) - facturado, 0);
+  return Math.max(num(item.Total) - num(item.Adelanto) - facturado, 0);
 }
 
 function presupuestoForInvoiceSource(db, type, item) {
   if (!item) return null;
   if (type === 'presupuesto') return item;
   return item.Presupuesto_ID ? findById(db, 'Presupuestos', item.Presupuesto_ID) : null;
-}
-
-function pendingAdelantoToInvoice(db, presupuesto) {
-  if (!presupuesto) return 0;
-  const adelanto = num(presupuesto.Adelanto);
-  if (adelanto <= 0) return 0;
-  const adelantoFacturado = billedAmount(db, f => f.Presupuesto_ID === presupuesto.ID && String(f.Concepto || '').trim().toLowerCase() === 'adelanto');
-  return Math.max(Math.min(adelanto - adelantoFacturado, pendingToInvoice(db, 'presupuesto', presupuesto)), 0);
 }
 
 function getLookups(db) {
@@ -804,7 +798,8 @@ async function savePresupuesto(data) {
   const id = data.ID || nextId(db, 'Presupuestos');
   const existing = findById(db, 'Presupuestos', id);
   const total = num(data.Total);
-  const cobrado = num(data.Cobrado || existing?.Cobrado || 0);
+  const adelanto = num(data.Adelanto);
+  const cobrado = Math.max(num(data.Cobrado || existing?.Cobrado || 0), adelanto);
   const cfg = defaultQuoteConfig({ ...configObject(db), ...data });
   saveQuoteConfig(db, cfg);
   const row = {
@@ -828,7 +823,7 @@ async function savePresupuesto(data) {
     IVA_Porc: 0,
     IVA: 0,
     Descuento: 0,
-    Adelanto: num(data.Adelanto),
+    Adelanto: adelanto,
     Cuotas: 0,
     Total: total,
     Cobrado: cobrado,
@@ -928,6 +923,7 @@ function addPdfField(doc, label, value, x, y, width) {
 async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
   return new Promise(resolve => {
     try {
+      const saldoPresupuesto = Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0);
       const doc = new PDFDocument({ size: 'A4', margin: 42, info: { Title: presupuesto.ID || 'Presupuesto' } });
       const stream = fs.createWriteStream(pdfFile);
       stream.on('finish', () => resolve(fs.existsSync(pdfFile)));
@@ -971,11 +967,16 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
 
       const summaryX = pageWidth - 250;
       doc.moveTo(summaryX, 450).lineTo(pageWidth - 42, 450).lineWidth(1.5).strokeColor('#0f172a').stroke();
-      doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Total', summaryX, 464);
-      doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
       if (num(presupuesto.Adelanto) > 0) {
-        doc.font('Helvetica').fontSize(8).fillColor('#64748b').text('Adelanto para inicio de trabajo', summaryX, 492, { width: 120 });
-        doc.font('Helvetica').fontSize(8).fillColor('#475569').text(money(presupuesto.Adelanto), summaryX, 492, { width: 208, align: 'right' });
+        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Total del trabajo', summaryX, 464);
+        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
+        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Adelanto recibido', summaryX, 484, { width: 120 });
+        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(`- ${money(presupuesto.Adelanto)}`, summaryX, 484, { width: 208, align: 'right' });
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Saldo', summaryX, 508);
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(saldoPresupuesto), summaryX, 508, { width: 208, align: 'right' });
+      } else {
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Total', summaryX, 464);
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
       }
 
       doc.roundedRect(42, 540, contentWidth, 80, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
@@ -996,6 +997,7 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
 async function createQuoteHtml(presupuesto, cfg) {
   ensureDirs();
   const logoSrc = imageToDataUri(cfg.Empresa_Logo);
+  const saldoPresupuesto = Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0);
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
   <style>
     body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:16px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
@@ -1020,14 +1022,19 @@ async function createQuoteHtml(presupuesto, cfg) {
     <div class="box"><div class="grid"><div><div class="label">Direccion</div><div class="val">${esc(presupuesto.Direccion)}</div></div><div><div class="label">Unidad</div><div class="val">${esc(presupuesto.Unidad_Trabajo || 'No especificada')}</div></div></div></div>
     <div class="box"><div class="label">Detalle de trabajo</div><div class="service-detail">${esc(presupuesto.Detalle_Servicio)}</div></div>
     <div class="summary">
-      <div class="summary-row total">
+      ${num(presupuesto.Adelanto) > 0 ? `<div class="summary-row advance">
+        <div><div class="summary-label">Total del trabajo</div></div>
+        <div class="summary-value">${money(presupuesto.Total)}</div>
+      </div><div class="summary-row advance">
+        <div><div class="summary-label">Adelanto recibido</div></div>
+        <div class="summary-value">- ${money(presupuesto.Adelanto)}</div>
+      </div><div class="summary-row total">
+        <div><div class="summary-label">Saldo</div></div>
+        <div class="summary-value">${money(saldoPresupuesto)}</div>
+      </div>` : `<div class="summary-row total">
         <div><div class="summary-label">Total</div></div>
         <div class="summary-value">${money(presupuesto.Total)}</div>
-      </div>
-      ${num(presupuesto.Adelanto) > 0 ? `<div class="summary-row advance">
-        <div><div class="summary-label">Adelanto para inicio de trabajo</div></div>
-        <div class="summary-value">${money(presupuesto.Adelanto)}</div>
-      </div>` : ''}
+      </div>`}
     </div>
     <div class="box"><div class="grid"><div><div class="label">Forma de pago</div><div class="val">${esc(presupuesto.Forma_Pago)}</div></div><div><div class="label">Condicion de pago</div><div class="val">${esc(presupuesto.Condicion_Pago)}</div></div></div><p><b>Observaciones:</b> ${esc(presupuesto.Observaciones || '')}</p></div>
     <div class="footer">Documento generado por ERP Mantenimiento Local.</div>
@@ -1121,8 +1128,8 @@ async function convertirPresupuesto(presupuestoId) {
     Prioridad: 'Media',
     Estado: 'Pendiente',
     Importe: p.Total,
-    Cobrado: 0,
-    Saldo: p.Total,
+    Cobrado: num(p.Adelanto),
+    Saldo: Math.max(num(p.Total) - num(p.Adelanto), 0),
     Presupuesto_ID: p.ID,
     Facturacion_Estado: 'No facturado',
     Observaciones: p.Observaciones
@@ -1147,8 +1154,8 @@ function ensureTrabajoFromPresupuesto(db, presupuesto) {
     Prioridad: 'Media',
     Estado: 'Pendiente',
     Importe: presupuesto.Total,
-    Cobrado: 0,
-    Saldo: presupuesto.Total,
+    Cobrado: num(presupuesto.Adelanto),
+    Saldo: Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0),
     Presupuesto_ID: presupuesto.ID,
     Facturacion_Estado: 'No facturado',
     Observaciones: presupuesto.Observaciones
@@ -1223,7 +1230,8 @@ async function saveCobro(data) {
     Factura_URL: data.Factura_URL || ''
   });
   if (trabajo) {
-    trabajo.Cobrado = num(trabajo.Cobrado) + num(data.Importe);
+    const presupuestoTrabajo = trabajo.Presupuesto_ID ? findById(db, 'Presupuestos', trabajo.Presupuesto_ID) : null;
+    trabajo.Cobrado = Math.max(num(trabajo.Cobrado), num(presupuestoTrabajo?.Adelanto)) + num(data.Importe);
     trabajo.Saldo = Math.max(num(trabajo.Importe) - num(trabajo.Cobrado), 0);
     if (trabajo.Estado === 'Finalizado' && !trabajo.Facturacion_Estado) trabajo.Facturacion_Estado = 'Pendiente de facturar';
   }
@@ -1233,6 +1241,15 @@ async function saveCobro(data) {
       servicio.Cobrado = num(servicio.Cobrado) + num(data.Importe);
       servicio.Saldo = Math.max(num(servicio.Importe) - num(servicio.Cobrado), 0);
       if (servicio.Saldo === 0) servicio.Estado = 'Cobrado';
+    }
+  }
+  if (data.Presupuesto_ID) {
+    const presupuesto = findById(db, 'Presupuestos', data.Presupuesto_ID);
+    if (presupuesto) {
+      if (String(data.Tipo_Cobro || '').toLowerCase() === 'adelanto' && num(presupuesto.Adelanto) === 0) presupuesto.Adelanto = num(data.Importe);
+      presupuesto.Cobrado = Math.max(num(presupuesto.Cobrado), num(presupuesto.Adelanto)) + num(data.Importe);
+      presupuesto.Saldo = Math.max(num(presupuesto.Total) - num(presupuesto.Cobrado), 0);
+      if (presupuesto.Saldo === 0 && !['Rechazado', 'Vencido'].includes(presupuesto.Estado)) presupuesto.Estado = 'Facturado';
     }
   }
   await writeDb(db);
@@ -1339,8 +1356,8 @@ async function saveFactura(data) {
 
   const concepto = data.Concepto || existing?.Concepto || 'Pago parcial';
   const sourcePresupuesto = source ? presupuestoForInvoiceSource(db, source[0], source[1]) : presupuesto;
-  const defaultAdelanto = String(concepto || '').trim().toLowerCase() === 'adelanto' ? pendingAdelantoToInvoice(db, sourcePresupuesto) : 0;
-  const importe = num(data.Importe || extracted.Importe || defaultAdelanto || trabajo?.Saldo || servicio?.Saldo || trabajo?.Importe || servicio?.Importe || presupuesto?.Total || 0);
+  const saldoPresupuesto = sourcePresupuesto ? Math.max(num(sourcePresupuesto.Total) - num(sourcePresupuesto.Adelanto) - billedAmount(db, f => f.Presupuesto_ID === sourcePresupuesto.ID), 0) : 0;
+  const importe = num(data.Importe || extracted.Importe || saldoPresupuesto || trabajo?.Saldo || servicio?.Saldo || trabajo?.Importe || servicio?.Importe || presupuesto?.Total || 0);
   if (!existing && source && data.Estado !== 'Anulada') {
     const pendiente = pendingToInvoice(db, source[0], source[1]);
     if (importe > pendiente) throw new Error(`El importe supera el saldo pendiente de facturar (${money(pendiente)}).`);
@@ -1403,7 +1420,8 @@ async function saveFactura(data) {
     const savedFactura = findById(db, 'Facturas', record.ID);
     if (savedFactura) savedFactura.Cobro_ID = cobro.ID;
     if (trabajo) {
-      trabajo.Cobrado = num(trabajo.Cobrado) + num(record.Importe);
+      const presupuestoTrabajo = trabajo.Presupuesto_ID ? findById(db, 'Presupuestos', trabajo.Presupuesto_ID) : null;
+      trabajo.Cobrado = Math.max(num(trabajo.Cobrado), num(presupuestoTrabajo?.Adelanto)) + num(record.Importe);
       trabajo.Saldo = Math.max(num(trabajo.Importe) - num(trabajo.Cobrado), 0);
       if (trabajo.Saldo === 0) trabajo.Estado = 'Facturado';
     }
@@ -1414,7 +1432,7 @@ async function saveFactura(data) {
     }
     const presupuestoCobrado = record.Presupuesto_ID ? findById(db, 'Presupuestos', record.Presupuesto_ID) : null;
     if (presupuestoCobrado) {
-      presupuestoCobrado.Cobrado = num(presupuestoCobrado.Cobrado) + num(record.Importe);
+      presupuestoCobrado.Cobrado = Math.max(num(presupuestoCobrado.Cobrado), num(presupuestoCobrado.Adelanto)) + num(record.Importe);
       presupuestoCobrado.Saldo = Math.max(num(presupuestoCobrado.Total) - num(presupuestoCobrado.Cobrado), 0);
       if (presupuestoCobrado.Saldo === 0 && !['Rechazado', 'Vencido'].includes(presupuestoCobrado.Estado)) presupuestoCobrado.Estado = 'Facturado';
     }
@@ -1428,11 +1446,12 @@ async function cerrarTrabajo(id) {
   const db = await readDb();
   const trabajo = findById(db, 'Trabajos', id);
   if (!trabajo) throw new Error('Trabajo no encontrado.');
+  const presupuesto = trabajo.Presupuesto_ID ? findById(db, 'Presupuestos', trabajo.Presupuesto_ID) : null;
   const facturado = (db.Facturas || [])
-    .filter(f => f.Trabajo_ID === id && f.Estado !== 'Anulada')
+    .filter(f => (f.Trabajo_ID === id || (trabajo.Presupuesto_ID && f.Presupuesto_ID === trabajo.Presupuesto_ID)) && f.Estado !== 'Anulada')
     .reduce((acc, f) => acc + num(f.Importe), 0);
-  const pendienteFacturar = Math.max(num(trabajo.Importe) - facturado, 0);
-  const pendienteCobrar = Math.max(num(trabajo.Importe) - num(trabajo.Cobrado), 0);
+  const pendienteFacturar = Math.max(num(trabajo.Importe) - num(presupuesto?.Adelanto) - facturado, 0);
+  const pendienteCobrar = Math.max(num(trabajo.Importe) - Math.max(num(trabajo.Cobrado), num(presupuesto?.Adelanto)), 0);
   if (pendienteFacturar > 0 || pendienteCobrar > 0) {
     throw new Error('No se puede cerrar: todavia queda pendiente de facturar o cobrar.');
   }

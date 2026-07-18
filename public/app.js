@@ -868,8 +868,11 @@ function contactPersonCard(role, name, subtitle, phone, whatsapp, email, actions
 }
 
 function renderPresupuestos() {
-  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Adelanto', 'Estado', 'Agenda', 'Facturacion'];
-  const rows = (state.presupuestos || []).map(p => ({ ...p, Documento: clientDocumentText(p.Cliente_ID), Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) }));
+  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Adelanto', 'Saldo', 'Estado', 'Agenda', 'Facturacion'];
+  const rows = (state.presupuestos || []).map(p => {
+    const billing = presupuestoBilling(p);
+    return { ...p, Documento: clientDocumentText(p.Cliente_ID), Saldo: billing.saldoCobro, Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) };
+  });
   renderTable('presupuestosTable', rows, cols, r => actionMenu([
     presupuestoEstadoControl(r),
     presupuestoLifecycleActions(r),
@@ -1412,8 +1415,10 @@ function renderKanban() {
 
 function workBilling(t) {
   const total = Number(t.Importe || 0);
-  const cobrado = Number(t.Cobrado || 0);
-  const facturas = (state.facturas || []).filter(f => f.Trabajo_ID === t.ID && f.Estado !== 'Anulada');
+  const presupuesto = t.Presupuesto_ID ? (state.presupuestos || []).find(p => p.ID === t.Presupuesto_ID) : null;
+  const adelanto = Number(presupuesto?.Adelanto || 0);
+  const cobrado = Math.max(Number(t.Cobrado || 0), adelanto);
+  const facturas = (state.facturas || []).filter(f => (f.Trabajo_ID === t.ID || (t.Presupuesto_ID && f.Presupuesto_ID === t.Presupuesto_ID)) && f.Estado !== 'Anulada');
   const facturado = facturas.reduce((acc, f) => acc + Number(f.Importe || 0), 0);
   const facturasPendientes = facturas.filter(f => f.Estado !== 'Cobrada');
   const pendienteFacturasCobro = facturasPendientes.reduce((acc, f) => acc + Number(f.Importe || 0), 0);
@@ -1422,7 +1427,7 @@ function workBilling(t) {
     cobrado,
     facturas,
     facturado,
-    pendienteFacturar: Math.max(total - facturado, 0),
+    pendienteFacturar: Math.max(total - adelanto - facturado, 0),
     saldoCobro: Math.max(total - cobrado, 0),
     facturasPendientes,
     pendienteFacturasCobro,
@@ -1454,19 +1459,22 @@ function serviceBilling(s) {
 
 function presupuestoBilling(p) {
   const total = Number(p.Total || 0);
+  const adelanto = Number(p.Adelanto || 0);
   const facturas = (state.facturas || []).filter(f => f.Presupuesto_ID === p.ID && f.Estado !== 'Anulada');
   const facturado = facturas.reduce((acc, f) => acc + Number(f.Importe || 0), 0);
   const facturasPendientes = facturas.filter(f => f.Estado !== 'Cobrada');
   const pendienteFacturasCobro = facturasPendientes.reduce((acc, f) => acc + Number(f.Importe || 0), 0);
   const cobrado = (state.cobros || [])
     .filter(c => c.Presupuesto_ID === p.ID)
-    .reduce((acc, c) => acc + Number(c.Importe || 0), 0);
+    .reduce((acc, c) => acc + Number(c.Importe || 0), adelanto);
+  const saldoBase = Math.max(total - adelanto, 0);
   return {
     total,
+    adelanto,
     cobrado,
     facturas,
     facturado,
-    pendienteFacturar: Math.max(total - facturado, 0),
+    pendienteFacturar: Math.max(saldoBase - facturado, 0),
     saldoCobro: Math.max(total - cobrado, 0),
     facturasPendientes,
     pendienteFacturasCobro
@@ -2006,7 +2014,7 @@ function openFacturaModal(id = '', preset = {}) {
       ${selectField('Servicio_ID', [['', 'Sin visita/emergencia']].concat(invoiceableOptions(state.servicios, serviceBilling, selectedServicioId, s => `${s.ID} - ${s.Tipo} - ${s.Cliente_Nombre} - ${clientDocumentText(s.Cliente_ID)}`)), selectedServicioId, 'onchange="fillFacturaFromSelection()"')}
       ${field('Trabajo_ID', 'hidden', null, '', selectedTrabajoId)}
       ${selectField('Presupuesto_ID', [['', 'Sin presupuesto']].concat(invoiceableOptions(state.presupuestos, presupuestoBilling, selectedPresupuestoId, p => `${p.ID} - ${p.Cliente_Nombre} - ${clientDocumentText(p.Cliente_ID)}`)), selectedPresupuestoId, 'onchange="fillFacturaFromSelection()"')}
-      ${selectField('Concepto', ['Visita', 'Emergencia', 'Adelanto', 'Pago parcial', 'Saldo final', 'Factura total'].map(x => [x, x]), initialConcept, 'onchange="actualizarImporteFacturaPorConcepto()"')}
+      ${selectField('Concepto', ['Visita', 'Emergencia', 'Pago parcial', 'Saldo final', 'Factura total'].map(x => [x, x]), initialConcept === 'Adelanto' ? 'Saldo final' : initialConcept, 'onchange="actualizarImporteFacturaPorConcepto()"')}
       ${field('Tipo', 'select', ['A', 'B', 'C', 'Otro'], '', f.Tipo || 'C')}
       ${field('Punto_Venta', 'text', null, '', f.Punto_Venta || '')}${field('Numero', 'text', null, '', f.Numero || '')}
       ${field('Factura_Nro', 'text', null, '', f.Factura_Nro || '')}
@@ -2033,12 +2041,6 @@ function invoiceableOptions(rows, billingFn, selectedId, labelFn) {
 
 function facturaPendiente(item, conceptoOverride = '') {
   if (!item) return '';
-  const concepto = conceptoOverride || document.getElementById('Concepto')?.value || '';
-  if (String(concepto).toLowerCase() === 'adelanto') {
-    const presupuesto = presupuestoFromInvoiceSource(item);
-    const adelanto = presupuesto ? presupuestoAdelantoPendiente(presupuesto) : 0;
-    if (adelanto > 0) return adelanto;
-  }
   const billing = itemBilling(item);
   return billing.pendienteFacturar || item.Saldo || '';
 }
@@ -2047,7 +2049,7 @@ function facturaPendingInfo(item) {
   const billing = itemBilling(item);
   const presupuesto = presupuestoFromInvoiceSource(item);
   const adelantoInfo = presupuesto && Number(presupuesto.Adelanto || 0) > 0
-    ? ` - Adelanto ${money(presupuesto.Adelanto)} - Adelanto pendiente ${money(presupuestoAdelantoPendiente(presupuesto))}`
+    ? ` - Adelanto cobrado ${money(presupuesto.Adelanto)} - Saldo del presupuesto ${money(billing.saldoCobro)}`
     : '';
   return `Total ${money(billing.total)} - Facturado ${money(billing.facturado)} - Pendiente de facturar ${money(billing.pendienteFacturar)} - Falta cobrar ${money(billing.saldoCobro)}${adelantoInfo}`;
 }
@@ -2064,20 +2066,8 @@ function presupuestoFromInvoiceSource(item) {
   return presupuestoId ? (state.presupuestos || []).find(p => p.ID === presupuestoId) || null : null;
 }
 
-function presupuestoAdelantoPendiente(presupuesto) {
-  if (!presupuesto) return 0;
-  const billing = presupuestoBilling(presupuesto);
-  const adelanto = Number(presupuesto.Adelanto || 0);
-  const adelantoFacturado = billing.facturas
-    .filter(f => String(f.Concepto || '').toLowerCase() === 'adelanto')
-    .reduce((acc, f) => acc + Number(f.Importe || 0), 0);
-  return Math.max(Math.min(adelanto - adelantoFacturado, billing.pendienteFacturar), 0);
-}
-
 function suggestedFacturaConcept(item, servicio = null) {
   if (servicio) return servicio.Tipo || 'Visita';
-  const presupuesto = presupuestoFromInvoiceSource(item);
-  if (presupuesto && presupuestoAdelantoPendiente(presupuesto) > 0) return 'Adelanto';
   const billing = itemBilling(item);
   if (billing.pendienteFacturar > 0 && billing.pendienteFacturar < billing.total) return 'Saldo final';
   if (billing.total > 0 && billing.pendienteFacturar === billing.total) return 'Factura total';
