@@ -2226,9 +2226,9 @@ async function previewFacturaFile(file) {
       if (extracted.Factura_Nro) setVal('Factura_Nro', extracted.Factura_Nro);
       if (extracted.Tipo) setVal('Tipo', extracted.Tipo);
       if (extracted.Importe) setVal('Importe', extracted.Importe);
-      showToast(extracted.Importe ? 'Importe detectado en la factura.' : 'Factura leida. Revisa el importe.');
+      showToast(extracted.warning || (extracted.Importe ? 'Importe detectado en la factura.' : 'Factura leida. Revisa el importe.'));
     } catch (error) {
-      showError(error);
+      showToast('No pude leer automaticamente el PDF. Carga o revisa los datos manualmente.');
     }
   }
 }

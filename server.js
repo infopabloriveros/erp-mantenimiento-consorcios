@@ -1306,16 +1306,39 @@ async function extractFacturaPdf(data) {
   if (!match) throw new Error('Archivo invalido.');
   const parsedName = parseFacturaInfo(data.filename || '');
   const buffer = Buffer.from(match[2], 'base64');
-  const { PDFParse } = require('pdf-parse');
-  const parser = new PDFParse({ data: buffer });
-  const parsed = await parser.getText();
-  await parser.destroy();
-  const parsedText = parseFacturaText(parsed.text || '');
-  return {
-    ...parsedName,
-    ...parsedText,
-    textPreview: String(parsed.text || '').slice(0, 800)
-  };
+  let parser;
+  try {
+    ensurePdfDomGlobals();
+    const { PDFParse } = require('pdf-parse');
+    parser = new PDFParse({ data: buffer });
+    const parsed = await parser.getText();
+    const parsedText = parseFacturaText(parsed.text || '');
+    return {
+      ...parsedName,
+      ...parsedText,
+      textPreview: String(parsed.text || '').slice(0, 800)
+    };
+  } catch (error) {
+    return {
+      ...parsedName,
+      textPreview: '',
+      warning: `No se pudo leer automaticamente el PDF. Carga o revisa los datos manualmente.`
+    };
+  } finally {
+    if (parser) await parser.destroy().catch(() => {});
+  }
+}
+
+function ensurePdfDomGlobals() {
+  if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return;
+  try {
+    const canvas = require('@napi-rs/canvas');
+    globalThis.DOMMatrix = globalThis.DOMMatrix || canvas.DOMMatrix;
+    globalThis.ImageData = globalThis.ImageData || canvas.ImageData;
+    globalThis.Path2D = globalThis.Path2D || canvas.Path2D;
+  } catch (error) {
+    // Si canvas no esta disponible, la lectura queda en modo tolerante y no bloquea la carga.
+  }
 }
 
 async function saveFactura(data) {
