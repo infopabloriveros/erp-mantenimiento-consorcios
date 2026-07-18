@@ -92,9 +92,8 @@ function hideLoading() {
 
 function bindAuth() {
   const form = document.getElementById('loginForm');
-  const logout = document.getElementById('logoutBtn');
   form?.addEventListener('submit', login);
-  logout?.addEventListener('click', logoutSession);
+  document.querySelectorAll('#logoutBtn,.mobileLogoutBtn').forEach(btn => btn.addEventListener('click', logoutSession));
 }
 
 async function checkSession() {
@@ -158,11 +157,13 @@ function hideLogin() {
 
 function bindNav() {
   document.querySelectorAll('.nav').forEach(btn => btn.addEventListener('click', () => {
+    const view = btn.dataset.view;
     document.querySelectorAll('.nav').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.view).classList.add('active');
+    document.querySelectorAll(`.nav[data-view="${view}"]`).forEach(b => b.classList.add('active'));
+    document.getElementById(view).classList.add('active');
     document.getElementById('pageTitle').textContent = btn.textContent;
+    document.getElementById('mobileMoreMenu')?.removeAttribute('open');
   }));
 }
 
