@@ -1174,10 +1174,11 @@ function correoDraft(tipo, presupuestoId, facturaId) {
     : tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
   const detalleFactura = facturaDetalleCorreo(factura, presupuesto);
+  const resumenFactura = facturaResumenFinancieroCorreo(factura, presupuesto);
   return {
     to,
     subject: `${tipo} ${factura?.Factura_Nro || factura?.ID || ''} - ${name}`.trim(),
-    body: `Estimado/a:\n\nAdjuntamos ${label} ${factura?.Factura_Nro || factura?.ID || ''} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalleFactura}\nTotal de la factura: ${money(factura?.Importe || 0)}\n\nSaludos.\nPablo Gonzalez Construcciones`,
+    body: `Estimado/a:\n\nAdjuntamos ${label} ${factura?.Factura_Nro || factura?.ID || ''} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalleFactura}\n${resumenFactura}\n\nSaludos.\nPablo Gonzalez Construcciones`,
     includeBudget: ['Factura adelanto', 'Factura cuota'].includes(tipo) && !!presupuesto,
     includeBalance: false
   };
@@ -1192,6 +1193,27 @@ function facturaDetalleCorreo(factura, presupuesto) {
   if (linkedPresupuesto?.Detalle_Servicio) return linkedPresupuesto.Detalle_Servicio;
   if (trabajo) return [trabajo.Titulo, trabajo.Observaciones].filter(Boolean).join(' - ');
   return isGenericInvoiceConcept(factura.Concepto) ? '' : factura.Concepto || '';
+}
+
+function facturaResumenFinancieroCorreo(factura, presupuesto) {
+  if (!factura) return '';
+  const linkedPresupuesto = presupuesto || (state.presupuestos || []).find(p => p.ID === factura.Presupuesto_ID);
+  if (!linkedPresupuesto) return `Total de la factura: ${money(factura.Importe || 0)}`;
+  const total = Number(linkedPresupuesto.Total || 0);
+  const adelanto = Number(linkedPresupuesto.Adelanto || 0);
+  const facturaImporte = Number(factura.Importe || 0);
+  const facturadoTotal = (state.facturas || [])
+    .filter(f => f.Presupuesto_ID === linkedPresupuesto.ID && f.Estado !== 'Anulada')
+    .reduce((acc, f) => acc + Number(f.Importe || 0), 0);
+  const facturadoAnterior = Math.max(facturadoTotal - facturaImporte, 0);
+  const saldoRestante = Math.max(total - adelanto - facturadoTotal, 0);
+  return [
+    `Total del trabajo: ${money(total)}`,
+    adelanto > 0 ? `Adelanto recibido: ${money(adelanto)}` : '',
+    facturadoAnterior > 0 ? `Facturado anteriormente: ${money(facturadoAnterior)}` : '',
+    `Importe de esta factura: ${money(facturaImporte)}`,
+    `Saldo restante: ${money(saldoRestante)}`
+  ].filter(Boolean).join('\n');
 }
 
 function isGenericInvoiceConcept(value) {
@@ -1343,12 +1365,13 @@ function whatsappDraft(tipo, item, pdfUrl = '') {
   }
   const presupuesto = item.presupuesto || (state.presupuestos || []).find(p => p.ID === item.Presupuesto_ID);
   const detalle = facturaDetalleCorreo(item, presupuesto);
+  const resumen = facturaResumenFinancieroCorreo(item, presupuesto);
   return [
     'Hola, te enviamos la factura correspondiente al trabajo realizado.',
     '',
     `Factura: ${item.Factura_Nro || item.ID}`,
     `Detalle: ${shortText(detalle || item.Concepto || '', 420)}`,
-    `Total de la factura: ${money(item.Importe || 0)}`,
+    resumen,
     pdfUrl ? `PDF: ${pdfUrl}` : '',
     '',
     'Saludos.',

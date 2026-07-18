@@ -1569,12 +1569,13 @@ function emailRecipient(db, cliente, presupuesto) {
 }
 
 function presupuestoBillingServer(db, presupuesto) {
-  if (!presupuesto) return { total: 0, facturado: 0, saldo: 0 };
+  if (!presupuesto) return { total: 0, adelanto: 0, facturado: 0, saldo: 0 };
   const total = num(presupuesto.Total);
+  const adelanto = num(presupuesto.Adelanto);
   const facturado = (db.Facturas || [])
     .filter(f => f.Presupuesto_ID === presupuesto.ID && f.Estado !== 'Anulada')
     .reduce((acc, f) => acc + num(f.Importe), 0);
-  return { total, facturado, saldo: Math.max(total - facturado, 0) };
+  return { total, adelanto, facturado, saldo: Math.max(total - adelanto - facturado, 0) };
 }
 
 function isGenericInvoiceConcept(value) {
@@ -1596,6 +1597,27 @@ function facturaWorkDetail(db, factura, presupuesto) {
   return isGenericInvoiceConcept(factura.Concepto) ? '' : factura.Concepto || '';
 }
 
+function facturaResumenFinanciero(db, factura, presupuesto) {
+  if (!factura) return '';
+  const linkedPresupuesto = presupuesto || (factura.Presupuesto_ID ? findById(db, 'Presupuestos', factura.Presupuesto_ID) : null);
+  if (!linkedPresupuesto) return `Total de la factura: ${money(factura.Importe || 0)}`;
+  const total = num(linkedPresupuesto.Total);
+  const adelanto = num(linkedPresupuesto.Adelanto);
+  const facturaImporte = num(factura.Importe);
+  const facturadoTotal = (db.Facturas || [])
+    .filter(f => f.Presupuesto_ID === linkedPresupuesto.ID && f.Estado !== 'Anulada')
+    .reduce((acc, f) => acc + num(f.Importe), 0);
+  const facturadoAnterior = Math.max(facturadoTotal - facturaImporte, 0);
+  const saldoRestante = Math.max(total - adelanto - facturadoTotal, 0);
+  return [
+    `Total del trabajo: ${money(total)}`,
+    adelanto > 0 ? `Adelanto recibido: ${money(adelanto)}` : '',
+    facturadoAnterior > 0 ? `Facturado anteriormente: ${money(facturadoAnterior)}` : '',
+    `Importe de esta factura: ${money(facturaImporte)}`,
+    `Saldo restante: ${money(saldoRestante)}`
+  ].filter(Boolean).join('\n');
+}
+
 function emailBody(tipo, item, cliente, extra = {}) {
   const saludo = 'Estimado/a:';
   const firma = 'Saludos.\nPablo Gonzalez Construcciones';
@@ -1609,7 +1631,8 @@ function emailBody(tipo, item, cliente, extra = {}) {
     : tipo === 'Factura final de trabajo' || tipo === 'Factura final de presupuesto' ? 'factura final por presupuesto realizado'
     : 'factura';
   const detalle = cleanEmailText(extra.facturaDetalle || (!isGenericInvoiceConcept(item.Concepto) ? item.Concepto : '') || extra.detalle || '');
-  return `${saludo}\n\nAdjuntamos ${label} ${item.Factura_Nro || item.ID} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalle}\nTotal de la factura: ${money(item.Importe || 0)}\n\n${firma}`;
+  const resumen = cleanEmailText(extra.facturaResumen || `Total de la factura: ${money(item.Importe || 0)}`);
+  return `${saludo}\n\nAdjuntamos ${label} ${item.Factura_Nro || item.ID} correspondiente al trabajo realizado.\n\nDetalle de trabajo/factura: ${detalle}\n${resumen}\n\n${firma}`;
 }
 
 function emailSubject(tipo, item, cliente) {
@@ -1644,7 +1667,8 @@ async function sendBusinessEmail(data) {
   }
 
   const facturaDetalle = facturaWorkDetail(db, factura, presupuesto);
-  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, facturaDetalle, destinatario: recipient.name }));
+  const facturaResumen = facturaResumenFinanciero(db, factura, presupuesto);
+  const body = cleanEmailText(data.Detalle || emailBody(tipo, item, cliente, { detalle: presupuesto?.Detalle_Servicio, facturaDetalle, facturaResumen, destinatario: recipient.name }));
   const email = {
     to: data.Para || recipient.email || '',
     cc: data.CC || '',
