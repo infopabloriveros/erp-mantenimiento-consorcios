@@ -1677,6 +1677,32 @@ async function sendBusinessEmail(data) {
   return { id: saved.ID };
 }
 
+async function recordWhatsAppSend(data) {
+  const db = await readDb();
+  const tipo = data.Tipo || 'WhatsApp';
+  const factura = data.Factura_ID ? findById(db, 'Facturas', data.Factura_ID) : null;
+  const presupuesto = data.Presupuesto_ID ? findById(db, 'Presupuestos', data.Presupuesto_ID) : (factura?.Presupuesto_ID ? findById(db, 'Presupuestos', factura.Presupuesto_ID) : null);
+  const clienteId = data.Cliente_ID || factura?.Cliente_ID || presupuesto?.Cliente_ID || '';
+  const saved = append(db, 'Correos', {
+    Fecha: now(),
+    Para: data.Para || '',
+    Asunto: data.Asunto || tipo,
+    Tipo: tipo,
+    Presupuesto_ID: presupuesto?.ID || data.Presupuesto_ID || '',
+    Factura_ID: factura?.ID || data.Factura_ID || '',
+    Cliente_ID: clienteId,
+    Estado: 'Enviado',
+    Detalle: data.Detalle || ''
+  });
+  if (presupuesto && tipo === 'WhatsApp presupuesto' && presupuesto.Estado === 'Borrador') presupuesto.Estado = 'Enviado';
+  if (factura) {
+    const stamp = `WhatsApp enviado ${today()} a ${data.Para || ''}`;
+    factura.Observaciones = [factura.Observaciones, stamp].filter(Boolean).join(' | ');
+  }
+  await writeDb(db);
+  return { id: saved.ID };
+}
+
 async function searchGlobal(q) {
   const db = await readDb();
   const needle = String(q || '').toLowerCase().trim();
@@ -1924,6 +1950,10 @@ app.post('/api/upload-drive', async (req, res) => {
 
 app.post('/api/correos/enviar', async (req, res) => {
   try { res.json(ok(await sendBusinessEmail(req.body))); } catch (error) { fail(res, error); }
+});
+
+app.post('/api/envios/whatsapp', async (req, res) => {
+  try { res.json(ok(await recordWhatsAppSend(req.body))); } catch (error) { fail(res, error); }
 });
 
 app.delete('/api/:table/:id', async (req, res) => {

@@ -66,6 +66,7 @@ function apiLoadingMessage(url, options = {}) {
   if (url.includes('/auth/logout')) return 'Cerrando sesion...';
   if (url.includes('/initial-data')) return 'Cargando datos del ERP...';
   if (url.includes('/correos')) return 'Enviando correo...';
+  if (url.includes('/envios')) return 'Actualizando envio...';
   if (url.includes('/facturas')) return 'Guardando factura...';
   if (url.includes('/presupuestos') && method === 'POST') return 'Generando presupuesto y PDF...';
   if (method === 'DELETE') return 'Eliminando registro...';
@@ -868,10 +869,10 @@ function contactPersonCard(role, name, subtitle, phone, whatsapp, email, actions
 }
 
 function renderPresupuestos() {
-  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Adelanto', 'Saldo', 'Estado', 'Agenda', 'Facturacion'];
+  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Adelanto', 'Saldo', 'Estado', 'Envio', 'Agenda', 'Facturacion'];
   const rows = (state.presupuestos || []).map(p => {
     const billing = presupuestoBilling(p);
-    return { ...p, Documento: clientDocumentText(p.Cliente_ID), Saldo: billing.saldoCobro, Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) };
+    return { ...p, Documento: clientDocumentText(p.Cliente_ID), Saldo: billing.saldoCobro, Envio: envioLabelForPresupuesto(p.ID), Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) };
   });
   renderTable('presupuestosTable', rows, cols, r => actionMenu([
     presupuestoEstadoControl(r),
@@ -921,6 +922,29 @@ function facturaCorreoEnviado(id) {
   return (state.correos || []).some(c => c.Factura_ID === id && c.Estado !== 'Error');
 }
 
+function presupuestoWhatsappEnviado(id) {
+  return (state.correos || []).some(c => c.Presupuesto_ID === id && c.Tipo === 'WhatsApp presupuesto' && c.Estado !== 'Error');
+}
+
+function facturaWhatsappEnviado(id) {
+  return (state.correos || []).some(c => c.Factura_ID === id && c.Tipo === 'WhatsApp factura' && c.Estado !== 'Error');
+}
+
+function envioLabelForPresupuesto(id) {
+  return envioBadges(presupuestoCorreoEnviado(id), presupuestoWhatsappEnviado(id));
+}
+
+function envioLabelForFactura(id) {
+  return envioBadges(facturaCorreoEnviado(id), facturaWhatsappEnviado(id));
+}
+
+function envioBadges(correo, whatsapp) {
+  const labels = [];
+  if (correo) labels.push('<span class="badge ok">Correo</span>');
+  if (whatsapp) labels.push('<span class="badge ok">WhatsApp</span>');
+  return labels.join(' ') || '<span class="badge warn">Sin enviar</span>';
+}
+
 function correoButtonForPresupuesto(p) {
   const sent = presupuestoCorreoEnviado(p.ID);
   return `<button class="${sent ? 'sentBtn' : 'secondaryBtn'}" onclick="openCorreoModal({tipo:'Presupuesto', presupuestoId:'${p.ID}'})">${sent ? 'Correo enviado' : 'Correo'}</button>`;
@@ -932,11 +956,13 @@ function correoButtonForFactura(f) {
 }
 
 function whatsappButtonForPresupuesto(p) {
-  return `<button class="secondaryBtn" onclick="openWhatsAppPresupuesto('${p.ID}')">WhatsApp</button>`;
+  const sent = presupuestoWhatsappEnviado(p.ID);
+  return `<button class="${sent ? 'sentBtn' : 'secondaryBtn'}" onclick="openWhatsAppPresupuesto('${p.ID}')">${sent ? 'WhatsApp enviado' : 'WhatsApp'}</button>`;
 }
 
 function whatsappButtonForFactura(f) {
-  return `<button class="secondaryBtn" onclick="openWhatsAppFactura('${f.ID}')">WhatsApp</button>`;
+  const sent = facturaWhatsappEnviado(f.ID);
+  return `<button class="${sent ? 'sentBtn' : 'secondaryBtn'}" onclick="openWhatsAppFactura('${f.ID}')">${sent ? 'WhatsApp enviado' : 'WhatsApp'}</button>`;
 }
 
 function invoiceActionForPresupuesto(p) {
@@ -988,8 +1014,8 @@ function renderFacturas() {
     </div>
     <div class="tableWrap">
       <table class="invoiceTable responsiveTable">
-        <thead><tr><th>Factura</th><th>Cliente</th><th>Asociado</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody>${rows.length ? rows.map(facturaRow).join('') : '<tr><td colspan="6" class="muted">Sin facturas cargadas.</td></tr>'}</tbody>
+        <thead><tr><th>Factura</th><th>Cliente</th><th>Asociado</th><th>Importe</th><th>Estado</th><th>Envio</th><th>Acciones</th></tr></thead>
+        <tbody>${rows.length ? rows.map(facturaRow).join('') : '<tr><td colspan="7" class="muted">Sin facturas cargadas.</td></tr>'}</tbody>
       </table>
     </div>
   `;
@@ -1031,6 +1057,7 @@ function facturaRow(f) {
     <td data-label="Asociado">${linked}</td>
     <td data-label="Importe">${money(f.Importe || 0)}</td>
     <td data-label="Estado"><span class="badge ${f.Estado === 'Cobrada' ? 'ok' : 'warn'}">${esc(f.Estado || 'Pendiente de cobro')}</span></td>
+    <td data-label="Envio">${envioLabelForFactura(f.ID)}</td>
     <td class="actionsCell" data-label="Acciones">${actionMenu([
       `<button class="secondaryBtn" onclick="openFacturaDetalleModal('${f.ID}')">Ver detalle</button>`,
       correoButtonForFactura(f),
@@ -1067,6 +1094,7 @@ function openFacturaDetalleModal(id) {
       <div class="field"><label>Concepto</label><input value="${esc(f.Concepto || '')}" disabled></div>
       <div class="field"><label>Importe</label><input value="${money(f.Importe || 0)}" disabled></div>
       <div class="field"><label>Estado</label><input value="${esc(f.Estado || 'Pendiente de cobro')}" disabled></div>
+      <div class="field full"><label>Envio</label><div class="formDivider">${envioLabelForFactura(f.ID)}</div></div>
       <div class="field"><label>Fecha de cobro</label><input value="${esc(f.Fecha_Cobro || '')}" disabled></div>
       <div class="field"><label>Medio de pago</label><input value="${esc(f.Medio_Pago || '')}" disabled></div>
       <div class="field"><label>Archivo</label><input value="${esc(f.Archivo_Nombre || '')}" disabled></div>
@@ -1086,9 +1114,9 @@ function renderCorreos() {
   const rows = state.correos || [];
   el.innerHTML = `
     <div class="adminSummary">
-      <span><b>${rows.length}</b> correos enviados</span>
-      <span><b>${rows.filter(c => c.Tipo === 'Presupuesto').length}</b> presupuestos</span>
-      <span><b>${rows.filter(c => String(c.Tipo || '').startsWith('Factura')).length}</b> facturas</span>
+      <span><b>${rows.length}</b> envios registrados</span>
+      <span><b>${rows.filter(c => c.Tipo === 'Presupuesto' || c.Tipo === 'WhatsApp presupuesto').length}</b> presupuestos</span>
+      <span><b>${rows.filter(c => String(c.Tipo || '').includes('Factura') || c.Tipo === 'WhatsApp factura').length}</b> facturas</span>
     </div>
     <div class="tableWrap">
       <table class="responsiveTable">
@@ -1100,7 +1128,7 @@ function renderCorreos() {
             <td data-label="Asunto">${esc(c.Asunto || '')}</td>
             <td data-label="Tipo">${esc(c.Tipo || '')}</td>
             <td data-label="Asociado">${[c.Presupuesto_ID && `Presupuesto ${esc(c.Presupuesto_ID)}`, c.Factura_ID && `Factura ${esc(c.Factura_ID)}`].filter(Boolean).join('<br>') || '-'}</td>
-          </tr>`).join('') : '<tr><td colspan="5" class="muted">Todavia no hay correos enviados.</td></tr>'}</tbody>
+          </tr>`).join('') : '<tr><td colspan="5" class="muted">Todavia no hay envios registrados.</td></tr>'}</tbody>
       </table>
     </div>`;
 }
@@ -1239,6 +1267,25 @@ async function sendPreparedWhatsApp(tipo, id) {
   }
   const message = [customMessage.trim(), publicUrl ? `PDF: ${publicUrl}` : ''].filter(Boolean).join('\n\n');
   openWhatsApp(recipient.phone, message, whatsappWindow);
+  try {
+    await api('/api/envios/whatsapp', {
+      method: 'POST',
+      body: JSON.stringify({
+        Tipo: tipo === 'presupuesto' ? 'WhatsApp presupuesto' : 'WhatsApp factura',
+        Presupuesto_ID: tipo === 'presupuesto' ? item.ID : (item.Presupuesto_ID || presupuesto?.ID || ''),
+        Factura_ID: tipo === 'factura' ? item.ID : '',
+        Cliente_ID: cliente?.ID || item.Cliente_ID || presupuesto?.Cliente_ID || '',
+        Para: recipient.phone,
+        Asunto: tipo === 'presupuesto' ? `WhatsApp presupuesto ${item.ID}` : `WhatsApp factura ${item.Factura_Nro || item.ID}`,
+        Detalle: message
+      }),
+      loadingMessage: 'Marcando WhatsApp como enviado...'
+    });
+    await loadData();
+    renderAll();
+  } catch (error) {
+    showToast('WhatsApp abierto. No se pudo marcar como enviado.');
+  }
   closeModal();
 }
 
@@ -2583,7 +2630,7 @@ function openModal(title, body) { document.getElementById('modalTitle').textCont
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3500); }
 function showError(err) { showToast('Error: ' + (err.message || err)); console.error(err); }
-function formatCell(col, val) { if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio' || col === 'Detalle' || col === 'Concepto') return detailPreview(val); if (col === 'Adelanto') return Number(val || 0) > 0 ? money(val) : '-'; if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
+function formatCell(col, val) { if (col === 'Envio') return val || '<span class="badge warn">Sin enviar</span>'; if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio' || col === 'Detalle' || col === 'Concepto') return detailPreview(val); if (col === 'Adelanto') return Number(val || 0) > 0 ? money(val) : '-'; if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
 function detailPreview(value) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
