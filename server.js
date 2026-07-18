@@ -938,9 +938,10 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, 176, 120);
       addPdfField(doc, 'Validez', `${cfg.Presupuesto_Validez_Dias || 15} dias`, 176, 176, 120);
       addPdfField(doc, 'Cliente', presupuesto.Cliente_Nombre, 310, 176, 220);
-      addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, 220, 120);
-      addPdfField(doc, 'Direccion', presupuesto.Direccion, 176, 220, 220);
-      addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 410, 220, 120);
+      addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, 220, 90);
+      addPdfField(doc, 'CUIT / DNI', presupuesto.Cliente_Documento || 'Pendiente', 142, 220, 120);
+      addPdfField(doc, 'Direccion', presupuesto.Direccion, 276, 220, 150);
+      addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 440, 220, 92);
 
       doc.roundedRect(42, 270, contentWidth, 150, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('DETALLE DE TRABAJO', 56, 286);
@@ -997,7 +998,7 @@ async function createQuoteHtml(presupuesto, cfg) {
       </div>
       ${logoSrc ? `<img class="logo" src="${esc(logoSrc)}" alt="Logo">` : ''}
     </div>
-    <div class="grid"><div class="box"><div class="label">Fecha</div><div class="val">${esc(presupuesto.Fecha)}</div></div><div class="box"><div class="label">Validez</div><div class="val">${esc(cfg.Presupuesto_Validez_Dias)} dias</div></div><div class="box"><div class="label">Cliente</div><div class="val"><b>${esc(presupuesto.Cliente_Nombre)}</b></div></div><div class="box"><div class="label">Tipo</div><div class="val">${esc(presupuesto.Cliente_Tipo)}</div></div></div>
+    <div class="grid"><div class="box"><div class="label">Fecha</div><div class="val">${esc(presupuesto.Fecha)}</div></div><div class="box"><div class="label">Validez</div><div class="val">${esc(cfg.Presupuesto_Validez_Dias)} dias</div></div><div class="box"><div class="label">Cliente</div><div class="val"><b>${esc(presupuesto.Cliente_Nombre)}</b></div></div><div class="box"><div class="label">CUIT / DNI</div><div class="val">${esc(presupuesto.Cliente_Documento || 'Pendiente')}</div></div></div>
     <div class="box"><div class="grid"><div><div class="label">Direccion</div><div class="val">${esc(presupuesto.Direccion)}</div></div><div><div class="label">Unidad</div><div class="val">${esc(presupuesto.Unidad_Trabajo || 'No especificada')}</div></div></div></div>
     <div class="box"><div class="label">Detalle de trabajo</div><div class="service-detail">${esc(presupuesto.Detalle_Servicio)}</div></div>
     <div class="summary">
@@ -1478,7 +1479,8 @@ function localAttachment(file, filename, mimeType) {
 async function ensurePresupuestoPdf(db, presupuesto, persistDrive = false) {
   if (!presupuesto) return null;
   const cfg = defaultQuoteConfig(configObject(db));
-  const quoteFile = await createQuoteHtml(presupuesto, cfg);
+  const quoteData = presupuestoWithClientDocument(db, presupuesto);
+  const quoteFile = await createQuoteHtml(quoteData, cfg);
   presupuesto.Archivo_Local = quoteFile.file;
   presupuesto.PDF_URL = quoteFile.url;
   if (persistDrive) {
@@ -1486,6 +1488,16 @@ async function ensurePresupuestoPdf(db, presupuesto, persistDrive = false) {
     if (driveQuote?.url) presupuesto.PDF_URL = driveQuote.url;
   }
   return quoteFile;
+}
+
+function presupuestoWithClientDocument(db, presupuesto) {
+  const cliente = findById(db, 'Clientes', presupuesto.Cliente_ID);
+  const tipo = cliente?.Documento_Tipo || presupuesto.Cliente_Documento_Tipo || 'CUIT/DNI';
+  const numero = cliente?.CUIT_DNI || presupuesto.Cliente_CUIT_DNI || '';
+  return {
+    ...presupuesto,
+    Cliente_Documento: numero ? `${tipo}: ${numero}` : `${tipo}: pendiente`
+  };
 }
 
 async function presupuestoPdfAttachment(db, presupuesto) {

@@ -430,8 +430,8 @@ function formatRange(range) {
 }
 
 function renderServicios() {
-  const cols = ['Fecha', 'Cliente_Nombre', 'Tipo', 'Titulo', 'Estado', 'Facturacion', 'Saldo'];
-  const rows = (state.servicios || []).map(s => ({ ...s, Facturacion: serviceBillingLabel(s) }));
+  const cols = ['Fecha', 'Cliente_Nombre', 'Documento', 'Tipo', 'Titulo', 'Estado', 'Facturacion', 'Saldo'];
+  const rows = (state.servicios || []).map(s => ({ ...s, Documento: clientDocumentText(s.Cliente_ID), Facturacion: serviceBillingLabel(s) }));
   renderTable('serviciosTable', rows, cols, r => actionMenu([
     `<button class="secondaryBtn" onclick="openServicioDetalleModal('${r.ID}')">Ver detalle</button>`,
     `<button class="secondaryBtn" onclick="openServicioModal('${r.ID}')">Editar</button>`,
@@ -467,6 +467,7 @@ function openServicioDetalleModal(id) {
       <div class="field"><label>Servicio</label><input value="${esc(s.ID)}" disabled></div>
       <div class="field"><label>Estado</label><input value="${esc(s.Estado || '')}" disabled></div>
       <div class="field full"><label>Cliente</label><input value="${esc(s.Cliente_Nombre || '')}" disabled></div>
+      <div class="field"><label>CUIT / DNI</label><input value="${esc(clientDocumentText(s.Cliente_ID))}" disabled></div>
       <div class="field"><label>Tipo</label><input value="${esc(s.Tipo || '')}" disabled></div>
       <div class="field"><label>Titulo</label><input value="${esc(s.Titulo || '')}" disabled></div>
       <div class="field full"><label>Direccion</label><input value="${esc([s.Direccion, s.Unidad_Trabajo].filter(Boolean).join(' - '))}" disabled></div>
@@ -867,8 +868,8 @@ function contactPersonCard(role, name, subtitle, phone, whatsapp, email, actions
 }
 
 function renderPresupuestos() {
-  const cols = ['ID', 'Cliente_Nombre', 'Detalle_Servicio', 'Total', 'Estado', 'Agenda', 'Facturacion'];
-  const rows = (state.presupuestos || []).map(p => ({ ...p, Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) }));
+  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Estado', 'Agenda', 'Facturacion'];
+  const rows = (state.presupuestos || []).map(p => ({ ...p, Documento: clientDocumentText(p.Cliente_ID), Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) }));
   renderTable('presupuestosTable', rows, cols, r => actionMenu([
     presupuestoEstadoControl(r),
     presupuestoLifecycleActions(r),
@@ -998,7 +999,7 @@ function pendingInvoiceTargets() {
     .filter(x => x.billing.pendienteFacturar > 0)
     .map(x => ({
       tipo: x.item.Tipo || 'Servicio',
-      label: `${x.item.ID} - ${x.item.Cliente_Nombre || x.item.Titulo || ''}`,
+      label: `${x.item.ID} - ${x.item.Cliente_Nombre || x.item.Titulo || ''} - ${clientDocumentText(x.item.Cliente_ID)}`,
       pendiente: x.billing.pendienteFacturar,
       action: `openFacturaModal('', {servicioId:'${x.item.ID}'})`
     }));
@@ -1011,7 +1012,7 @@ function pendingInvoiceTargets() {
     .filter(x => x.billing.pendienteFacturar > 0)
     .map(x => ({
       tipo: 'Obra',
-      label: `${x.item.ID} - ${x.item.Cliente_Nombre || ''}`,
+      label: `${x.item.ID} - ${x.item.Cliente_Nombre || ''} - ${clientDocumentText(x.item.Cliente_ID)}`,
       pendiente: x.billing.pendienteFacturar,
       action: `openFacturaModal('', {presupuestoId:'${x.item.ID}'})`
     }));
@@ -1020,9 +1021,10 @@ function pendingInvoiceTargets() {
 
 function facturaRow(f) {
   const linked = facturaLinkedText(f);
+  const clienteId = f.Cliente_ID || linkedSourceByFactura(f)?.Cliente_ID || '';
   return `<tr>
     <td data-label="Factura"><b>${esc(f.Factura_Nro || f.ID)}</b><small>${esc(f.Fecha || '')}</small></td>
-    <td data-label="Cliente">${esc(f.Cliente_Nombre || '-')}</td>
+    <td data-label="Cliente">${esc(f.Cliente_Nombre || '-')}<small>${esc(clientDocumentText(clienteId))}</small></td>
     <td data-label="Asociado">${linked}</td>
     <td data-label="Importe">${money(f.Importe || 0)}</td>
     <td data-label="Estado"><span class="badge ${f.Estado === 'Cobrada' ? 'ok' : 'warn'}">${esc(f.Estado || 'Pendiente de cobro')}</span></td>
@@ -1040,14 +1042,24 @@ function facturaLinkedText(f) {
   return [f.Servicio_ID && `Visita/Emergencia ${f.Servicio_ID}`, f.Cobro_ID && `Cobro ${f.Cobro_ID}`].filter(Boolean).join('<br>') || '-';
 }
 
+function linkedSourceByFactura(f) {
+  return (state.presupuestos || []).find(p => p.ID === f.Presupuesto_ID)
+    || (state.servicios || []).find(s => s.ID === f.Servicio_ID)
+    || (state.trabajos || []).find(t => t.ID === f.Trabajo_ID)
+    || null;
+}
+
 function openFacturaDetalleModal(id) {
   const f = (state.facturas || []).find(x => x.ID === id);
   if (!f) return;
+  const source = linkedSourceByFactura(f);
+  const clienteId = f.Cliente_ID || source?.Cliente_ID || '';
   openModal('Detalle de factura', `
     <div class="formGrid">
       <div class="field"><label>Factura</label><input value="${esc(f.Factura_Nro || f.ID)}" disabled></div>
       <div class="field"><label>Fecha</label><input value="${esc(f.Fecha || '')}" disabled></div>
       <div class="field full"><label>Cliente</label><input value="${esc(f.Cliente_Nombre || '')}" disabled></div>
+      <div class="field"><label>CUIT / DNI</label><input value="${esc(clientDocumentText(clienteId))}" disabled></div>
       <div class="field full"><label>Asociado a</label><div class="formDivider">${facturaLinkedText(f)}</div></div>
       <div class="field"><label>Concepto</label><input value="${esc(f.Concepto || '')}" disabled></div>
       <div class="field"><label>Importe</label><input value="${money(f.Importe || 0)}" disabled></div>
@@ -1381,7 +1393,7 @@ function renderKanban() {
         return `
         <div class="taskCard">
           <b>${esc(t.Titulo || 'Trabajo')}</b>
-          <small>${esc(t.Cliente_Nombre || '')}<br>${esc(t.Direccion || '')} ${t.Unidad_Trabajo ? '- Unidad ' + esc(t.Unidad_Trabajo) : ''}</small>
+          <small>${esc(t.Cliente_Nombre || '')}<br>${esc(clientDocumentText(t.Cliente_ID))}<br>${esc(t.Direccion || '')} ${t.Unidad_Trabajo ? '- Unidad ' + esc(t.Unidad_Trabajo) : ''}</small>
           ${trabajoMoneySummary(t)}
           <div class="taskActions">${billing.cerrado ? '<span class="badge ok">Trabajo cerrado</span>' : ''}
             ${actionMenu([
@@ -1480,6 +1492,7 @@ function openTrabajoDetalleModal(id) {
     <div class="formGrid">
       <div class="field full"><label>Trabajo</label><input value="${esc(t.Titulo || t.ID)}" disabled></div>
       <div class="field"><label>Cliente</label><input value="${esc(t.Cliente_Nombre || '')}" disabled></div>
+      <div class="field"><label>CUIT / DNI</label><input value="${esc(clientDocumentText(t.Cliente_ID))}" disabled></div>
       <div class="field"><label>Estado</label><input value="${esc(t.Estado || '')}" disabled></div>
       <div class="field full"><label>Direccion</label><input value="${esc([t.Direccion, t.Unidad_Trabajo && 'Unidad ' + t.Unidad_Trabajo].filter(Boolean).join(' - '))}" disabled></div>
       <div class="field"><label>Total</label><input value="${money(billing.total)}" disabled></div>
@@ -1570,6 +1583,7 @@ function agendaEventCard(t) {
   return `<div class="event">
     <b>${esc(t.Hora_Inicio || '')} ${esc(title)}</b>
     <br>${esc(t.Cliente_Nombre || '')}
+    <br><small>${esc(clientDocumentText(t.Cliente_ID))}</small>
     <br><small>${esc(t.Fecha_Programada || '')} - ${esc(t.Direccion || '')} ${t.Unidad_Trabajo ? '- ' + esc(t.Unidad_Trabajo) : ''}</small>
     ${presupuestoText}
     <button class="secondaryBtn" onclick="openAgendaTrabajoModal('${t.ID}')">Reprogramar</button>
@@ -1772,6 +1786,7 @@ function openServicioModal(id = '') {
         <div id="clienteSuggestions" class="suggestions hidden"></div>
         <input type="hidden" id="Cliente_ID" data-name="Cliente_ID" value="${s.Cliente_ID || ''}">
       </div>
+      <div class="field"><label>CUIT / DNI</label><input id="Cliente_Documento" value="${esc(clientDocumentText(s.Cliente_ID))}" disabled></div>
       ${field('Fecha', 'date', null, '', toInputDate(s.Fecha) || new Date().toISOString().slice(0, 10))}
       ${field('Tipo', 'select', ['Visita', 'Emergencia'], '', s.Tipo || 'Visita')}
       ${field('Direccion', 'text', null, '', s.Direccion || '')}
@@ -1817,6 +1832,7 @@ function openPresupuestoModal(id = '', preset = {}) {
         <div id="clienteSuggestions" class="suggestions hidden"></div>
         <input type="hidden" id="Cliente_ID" data-name="Cliente_ID" value="${data.Cliente_ID || ''}">
       </div>
+      <div class="field"><label>CUIT / DNI</label><input id="Cliente_Documento" value="${esc(clientDocumentText(data.Cliente_ID))}" disabled></div>
       ${field('Cliente_Tipo', 'text', null, '', data.Cliente_Tipo || '')}${field('Direccion', 'text', null, '', data.Direccion || '')}
       <div id="unidadBox" class="field ${selectedCliente && selectedCliente.Tipo === 'Consorcio' ? '' : 'hidden'}">
         <label>Unidad de trabajo opcional</label>
@@ -1854,6 +1870,7 @@ function openTrabajoModal(id = '') {
         <div id="clienteSuggestions" class="suggestions hidden"></div>
         <input type="hidden" id="Cliente_ID" data-name="Cliente_ID" value="${t.Cliente_ID || ''}">
       </div>
+      <div class="field"><label>CUIT / DNI</label><input id="Cliente_Documento" value="${esc(clientDocumentText(t.Cliente_ID))}" disabled></div>
       ${field('Direccion', 'text', null, '', t.Direccion || '')}${field('Unidad_Trabajo', 'text', null, '', t.Unidad_Trabajo || '')}
       ${field('Titulo', 'text', null, '', t.Titulo || 'Trabajo de mantenimiento')}${field('Prioridad', 'select', ['Baja', 'Media', 'Alta', 'Urgente'], '', t.Prioridad || 'Media')}
       ${field('Estado', 'select', ['Pendiente', 'Programado', 'En curso', 'Finalizado', 'Facturado', 'Cancelado'], '', t.Estado || 'Pendiente')}
@@ -1982,10 +1999,11 @@ function openFacturaModal(id = '', preset = {}) {
     <div class="formGrid">
       ${field('ID', 'hidden', null, '', f.ID || '')}
       ${field('Fecha', 'date', null, '', toInputDate(f.Fecha) || new Date().toISOString().slice(0, 10))}
-      ${selectField('Cliente_ID', [['', 'Seleccionar cliente']].concat(state.clientes.map(c => [c.ID, `${c.Nombre} - ${c.Tipo}`])), f.Cliente_ID || presetClienteId, 'onchange="fillFacturaFromSelection()"')}
-      ${selectField('Servicio_ID', [['', 'Sin visita/emergencia']].concat(invoiceableOptions(state.servicios, serviceBilling, selectedServicioId, s => `${s.ID} - ${s.Tipo} - ${s.Cliente_Nombre}`)), selectedServicioId, 'onchange="fillFacturaFromSelection()"')}
+      ${selectField('Cliente_ID', [['', 'Seleccionar cliente']].concat(state.clientes.map(c => [c.ID, `${c.Nombre} - ${clientDocumentText(c.ID)} - ${c.Tipo}`])), f.Cliente_ID || presetClienteId, 'onchange="fillFacturaFromSelection()"')}
+      <div class="field"><label>CUIT / DNI</label><input id="Factura_Documento" value="${esc(clientDocumentText(f.Cliente_ID || presetClienteId))}" disabled></div>
+      ${selectField('Servicio_ID', [['', 'Sin visita/emergencia']].concat(invoiceableOptions(state.servicios, serviceBilling, selectedServicioId, s => `${s.ID} - ${s.Tipo} - ${s.Cliente_Nombre} - ${clientDocumentText(s.Cliente_ID)}`)), selectedServicioId, 'onchange="fillFacturaFromSelection()"')}
       ${field('Trabajo_ID', 'hidden', null, '', selectedTrabajoId)}
-      ${selectField('Presupuesto_ID', [['', 'Sin presupuesto']].concat(invoiceableOptions(state.presupuestos, presupuestoBilling, selectedPresupuestoId, p => `${p.ID} - ${p.Cliente_Nombre}`)), selectedPresupuestoId, 'onchange="fillFacturaFromSelection()"')}
+      ${selectField('Presupuesto_ID', [['', 'Sin presupuesto']].concat(invoiceableOptions(state.presupuestos, presupuestoBilling, selectedPresupuestoId, p => `${p.ID} - ${p.Cliente_Nombre} - ${clientDocumentText(p.Cliente_ID)}`)), selectedPresupuestoId, 'onchange="fillFacturaFromSelection()"')}
       ${field('Concepto', 'select', ['Visita', 'Emergencia', 'Adelanto', 'Pago parcial', 'Saldo final', 'Factura total'], '', f.Concepto || preset.concepto || presetServicio?.Tipo || 'Pago parcial')}
       ${field('Tipo', 'select', ['A', 'B', 'C', 'Otro'], '', f.Tipo || 'C')}
       ${field('Punto_Venta', 'text', null, '', f.Punto_Venta || '')}${field('Numero', 'text', null, '', f.Numero || '')}
@@ -2022,6 +2040,17 @@ function facturaPendingInfo(item) {
   return `Total ${money(billing.total)} - Facturado ${money(billing.facturado)} - Pendiente de facturar ${money(billing.pendienteFacturar)} - Falta cobrar ${money(billing.saldoCobro)}`;
 }
 
+function clientById(id) {
+  return (state.clientes || []).find(c => c.ID === id) || null;
+}
+
+function clientDocumentText(clienteId) {
+  const cliente = clientById(clienteId);
+  if (!cliente) return 'CUIT/DNI pendiente';
+  const tipo = cliente.Documento_Tipo || 'CUIT/DNI';
+  return cliente.CUIT_DNI ? `${tipo}: ${cliente.CUIT_DNI}` : `${tipo}: pendiente`;
+}
+
 function usarPendienteFactura() {
   const trabajo = state.trabajos.find(t => t.ID === document.getElementById('Trabajo_ID')?.value);
   const servicio = state.servicios.find(s => s.ID === document.getElementById('Servicio_ID')?.value);
@@ -2038,22 +2067,26 @@ function fillFacturaFromSelection() {
   const cliente = state.clientes.find(c => c.ID === document.getElementById('Cliente_ID')?.value);
   if (servicio) {
     setVal('Cliente_ID', servicio.Cliente_ID);
+    setVal('Factura_Documento', clientDocumentText(servicio.Cliente_ID));
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(servicio));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(servicio);
   } else if (presupuesto) {
     setVal('Cliente_ID', presupuesto.Cliente_ID);
+    setVal('Factura_Documento', clientDocumentText(presupuesto.Cliente_ID));
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(presupuesto));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(presupuesto);
   } else if (trabajo) {
     setVal('Cliente_ID', trabajo.Cliente_ID);
+    setVal('Factura_Documento', clientDocumentText(trabajo.Cliente_ID));
     if (trabajo.Presupuesto_ID) setVal('Presupuesto_ID', trabajo.Presupuesto_ID);
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(trabajo));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(trabajo);
-  } else if (cliente && !document.getElementById('Importe')?.value) {
-    setVal('Importe', '');
+  } else if (cliente) {
+    setVal('Factura_Documento', clientDocumentText(cliente.ID));
+    if (!document.getElementById('Importe')?.value) setVal('Importe', '');
   }
 }
 
@@ -2333,6 +2366,8 @@ function selectCliente(id, forTrabajo = false) {
   document.getElementById('Cliente_ID').value = selectedCliente.ID;
   const input = forTrabajo ? document.getElementById('trabClienteSearch') : (document.getElementById('clienteSearch') || document.getElementById('servClienteSearch'));
   if (input) input.value = selectedCliente.Nombre;
+  setVal('Cliente_Documento', clientDocumentText(selectedCliente.ID));
+  setVal('Factura_Documento', clientDocumentText(selectedCliente.ID));
   setVal('Cliente_Tipo', selectedCliente.Tipo || '');
   setVal('Direccion', selectedCliente.Direccion || '');
   const box = document.getElementById('clienteSuggestions'); if (box) box.classList.add('hidden');
