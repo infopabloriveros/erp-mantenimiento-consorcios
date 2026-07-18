@@ -560,11 +560,25 @@ function pendingToInvoice(db, type, item) {
     return Math.max(num(item.Importe) - facturado, 0);
   }
   if (type === 'trabajo') {
-    const facturado = billedAmount(db, f => f.Trabajo_ID === item.ID);
+    const facturado = billedAmount(db, f => f.Trabajo_ID === item.ID || (item.Presupuesto_ID && f.Presupuesto_ID === item.Presupuesto_ID));
     return Math.max(num(item.Importe) - facturado, 0);
   }
   const facturado = billedAmount(db, f => f.Presupuesto_ID === item.ID);
   return Math.max(num(item.Total) - facturado, 0);
+}
+
+function presupuestoForInvoiceSource(db, type, item) {
+  if (!item) return null;
+  if (type === 'presupuesto') return item;
+  return item.Presupuesto_ID ? findById(db, 'Presupuestos', item.Presupuesto_ID) : null;
+}
+
+function pendingAdelantoToInvoice(db, presupuesto) {
+  if (!presupuesto) return 0;
+  const adelanto = num(presupuesto.Adelanto);
+  if (adelanto <= 0) return 0;
+  const adelantoFacturado = billedAmount(db, f => f.Presupuesto_ID === presupuesto.ID && String(f.Concepto || '').trim().toLowerCase() === 'adelanto');
+  return Math.max(Math.min(adelanto - adelantoFacturado, pendingToInvoice(db, 'presupuesto', presupuesto)), 0);
 }
 
 function getLookups(db) {
@@ -788,7 +802,9 @@ async function savePresupuesto(data) {
   if (!cliente) throw new Error('Cliente no encontrado.');
 
   const id = data.ID || nextId(db, 'Presupuestos');
+  const existing = findById(db, 'Presupuestos', id);
   const total = num(data.Total);
+  const cobrado = num(data.Cobrado || existing?.Cobrado || 0);
   const cfg = defaultQuoteConfig({ ...configObject(db), ...data });
   saveQuoteConfig(db, cfg);
   const row = {
@@ -815,9 +831,11 @@ async function savePresupuesto(data) {
     Adelanto: num(data.Adelanto),
     Cuotas: 0,
     Total: total,
+    Cobrado: cobrado,
+    Saldo: Math.max(total - cobrado, 0),
     Estado: data.Estado || 'Borrador',
     Observaciones: data.Observaciones || '',
-    Fecha_Creacion: now()
+    Fecha_Creacion: existing?.Fecha_Creacion || now()
   };
   const quoteFile = await createQuoteHtml(row, cfg);
   row.PDF_URL = quoteFile.url;
@@ -1293,9 +1311,9 @@ async function saveFactura(data) {
   const cliente = data.Cliente_ID ? findById(db, 'Clientes', data.Cliente_ID) : (trabajo ? findById(db, 'Clientes', trabajo.Cliente_ID) : (servicio ? findById(db, 'Clientes', servicio.Cliente_ID) : (presupuesto ? findById(db, 'Clientes', presupuesto.Cliente_ID) : null)));
   const parsed = parseFacturaInfo(data.Archivo_Nombre || data.filename || '');
   let extracted = {};
+  const source = servicio ? ['servicio', servicio] : (trabajo ? ['trabajo', trabajo] : (presupuesto ? ['presupuesto', presupuesto] : null));
 
   if (!existing && data.Estado !== 'Anulada') {
-    const source = servicio ? ['servicio', servicio] : (trabajo ? ['trabajo', trabajo] : (presupuesto ? ['presupuesto', presupuesto] : null));
     if (source && pendingToInvoice(db, source[0], source[1]) <= 0) {
       throw new Error('Este origen ya esta facturado completo. Si falta cobrar, marca la factura existente como cobrada.');
     }
@@ -1319,6 +1337,15 @@ async function saveFactura(data) {
     });
   }
 
+  const concepto = data.Concepto || existing?.Concepto || 'Pago parcial';
+  const sourcePresupuesto = source ? presupuestoForInvoiceSource(db, source[0], source[1]) : presupuesto;
+  const defaultAdelanto = String(concepto || '').trim().toLowerCase() === 'adelanto' ? pendingAdelantoToInvoice(db, sourcePresupuesto) : 0;
+  const importe = num(data.Importe || extracted.Importe || defaultAdelanto || trabajo?.Saldo || servicio?.Saldo || trabajo?.Importe || servicio?.Importe || presupuesto?.Total || 0);
+  if (!existing && source && data.Estado !== 'Anulada') {
+    const pendiente = pendingToInvoice(db, source[0], source[1]);
+    if (importe > pendiente) throw new Error(`El importe supera el saldo pendiente de facturar (${money(pendiente)}).`);
+  }
+
   const record = upsert(db, 'Facturas', {
     ...data,
     ...parsed,
@@ -1330,12 +1357,12 @@ async function saveFactura(data) {
     Servicio_ID: data.Servicio_ID || '',
     Trabajo_ID: data.Trabajo_ID || '',
     Presupuesto_ID: data.Presupuesto_ID || trabajo?.Presupuesto_ID || '',
-    Concepto: data.Concepto || existing?.Concepto || 'Pago parcial',
+    Concepto: concepto,
     Tipo: data.Tipo || extracted.Tipo || parsed.Tipo || 'C',
     Punto_Venta: data.Punto_Venta || extracted.Punto_Venta || parsed.Punto_Venta || '',
     Numero: data.Numero || extracted.Numero || parsed.Numero || '',
     Factura_Nro: data.Factura_Nro || extracted.Factura_Nro || parsed.Factura_Nro || '',
-    Importe: num(data.Importe || extracted.Importe || trabajo?.Saldo || servicio?.Saldo || trabajo?.Importe || servicio?.Importe || presupuesto?.Total || 0),
+    Importe: importe,
     Estado: data.Estado || existing?.Estado || 'Pendiente de cobro',
     Fecha_Cobro: data.Fecha_Cobro || '',
     Medio_Pago: data.Medio_Pago || 'Transferencia bancaria',
@@ -1384,6 +1411,12 @@ async function saveFactura(data) {
       servicio.Cobrado = num(servicio.Cobrado) + num(record.Importe);
       servicio.Saldo = Math.max(num(servicio.Importe) - num(servicio.Cobrado), 0);
       if (servicio.Saldo === 0) servicio.Estado = 'Cobrado';
+    }
+    const presupuestoCobrado = record.Presupuesto_ID ? findById(db, 'Presupuestos', record.Presupuesto_ID) : null;
+    if (presupuestoCobrado) {
+      presupuestoCobrado.Cobrado = num(presupuestoCobrado.Cobrado) + num(record.Importe);
+      presupuestoCobrado.Saldo = Math.max(num(presupuestoCobrado.Total) - num(presupuestoCobrado.Cobrado), 0);
+      if (presupuestoCobrado.Saldo === 0 && !['Rechazado', 'Vencido'].includes(presupuestoCobrado.Estado)) presupuestoCobrado.Estado = 'Facturado';
     }
   }
 

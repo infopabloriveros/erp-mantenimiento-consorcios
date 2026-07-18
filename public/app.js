@@ -868,7 +868,7 @@ function contactPersonCard(role, name, subtitle, phone, whatsapp, email, actions
 }
 
 function renderPresupuestos() {
-  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Estado', 'Agenda', 'Facturacion'];
+  const cols = ['ID', 'Cliente_Nombre', 'Documento', 'Detalle_Servicio', 'Total', 'Adelanto', 'Estado', 'Agenda', 'Facturacion'];
   const rows = (state.presupuestos || []).map(p => ({ ...p, Documento: clientDocumentText(p.Cliente_ID), Agenda: presupuestoAgendaLabel(p), Facturacion: presupuestoBillingLabel(p) }));
   renderTable('presupuestosTable', rows, cols, r => actionMenu([
     presupuestoEstadoControl(r),
@@ -1995,6 +1995,8 @@ function openFacturaModal(id = '', preset = {}) {
   const selectedServicioId = f.Servicio_ID || preset.servicioId || '';
   const selectedTrabajoId = f.Trabajo_ID || preset.trabajoId || '';
   const selectedPresupuestoId = f.Presupuesto_ID || presetPresupuestoId;
+  const initialConcept = f.Concepto || preset.concepto || suggestedFacturaConcept(pendingSource, presetServicio);
+  const initialImporte = f.Importe || facturaPendiente(pendingSource, initialConcept) || pendingSource?.Importe || '';
   openModal(id ? 'Editar factura' : 'Nueva factura', `
     <div class="formGrid">
       ${field('ID', 'hidden', null, '', f.ID || '')}
@@ -2004,13 +2006,13 @@ function openFacturaModal(id = '', preset = {}) {
       ${selectField('Servicio_ID', [['', 'Sin visita/emergencia']].concat(invoiceableOptions(state.servicios, serviceBilling, selectedServicioId, s => `${s.ID} - ${s.Tipo} - ${s.Cliente_Nombre} - ${clientDocumentText(s.Cliente_ID)}`)), selectedServicioId, 'onchange="fillFacturaFromSelection()"')}
       ${field('Trabajo_ID', 'hidden', null, '', selectedTrabajoId)}
       ${selectField('Presupuesto_ID', [['', 'Sin presupuesto']].concat(invoiceableOptions(state.presupuestos, presupuestoBilling, selectedPresupuestoId, p => `${p.ID} - ${p.Cliente_Nombre} - ${clientDocumentText(p.Cliente_ID)}`)), selectedPresupuestoId, 'onchange="fillFacturaFromSelection()"')}
-      ${field('Concepto', 'select', ['Visita', 'Emergencia', 'Adelanto', 'Pago parcial', 'Saldo final', 'Factura total'], '', f.Concepto || preset.concepto || presetServicio?.Tipo || 'Pago parcial')}
+      ${selectField('Concepto', ['Visita', 'Emergencia', 'Adelanto', 'Pago parcial', 'Saldo final', 'Factura total'].map(x => [x, x]), initialConcept, 'onchange="actualizarImporteFacturaPorConcepto()"')}
       ${field('Tipo', 'select', ['A', 'B', 'C', 'Otro'], '', f.Tipo || 'C')}
       ${field('Punto_Venta', 'text', null, '', f.Punto_Venta || '')}${field('Numero', 'text', null, '', f.Numero || '')}
       ${field('Factura_Nro', 'text', null, '', f.Factura_Nro || '')}
       <div class="field">
         <label>Importe</label>
-        <input type="number" id="Importe" data-name="Importe" value="${esc(f.Importe || facturaPendiente(pendingSource) || pendingSource?.Importe || '')}">
+        <input type="number" id="Importe" data-name="Importe" value="${esc(initialImporte)}">
         <button type="button" class="miniFieldBtn" onclick="usarPendienteFactura()">Tomar pendiente</button>
       </div>
       <div id="facturaPendingInfo" class="formDivider full">${pendingSource ? facturaPendingInfo(pendingSource) : 'Selecciona una visita, emergencia o presupuesto para ver el pendiente.'}</div>
@@ -2029,15 +2031,57 @@ function invoiceableOptions(rows, billingFn, selectedId, labelFn) {
     .map(row => [row.ID, labelFn(row)]);
 }
 
-function facturaPendiente(item) {
+function facturaPendiente(item, conceptoOverride = '') {
   if (!item) return '';
-  const billing = item.ID?.startsWith('TRA') ? workBilling(item) : item.ID?.startsWith('PRE') ? presupuestoBilling(item) : serviceBilling(item);
+  const concepto = conceptoOverride || document.getElementById('Concepto')?.value || '';
+  if (String(concepto).toLowerCase() === 'adelanto') {
+    const presupuesto = presupuestoFromInvoiceSource(item);
+    const adelanto = presupuesto ? presupuestoAdelantoPendiente(presupuesto) : 0;
+    if (adelanto > 0) return adelanto;
+  }
+  const billing = itemBilling(item);
   return billing.pendienteFacturar || item.Saldo || '';
 }
 
 function facturaPendingInfo(item) {
-  const billing = item.ID?.startsWith('TRA') ? workBilling(item) : item.ID?.startsWith('PRE') ? presupuestoBilling(item) : serviceBilling(item);
-  return `Total ${money(billing.total)} - Facturado ${money(billing.facturado)} - Pendiente de facturar ${money(billing.pendienteFacturar)} - Falta cobrar ${money(billing.saldoCobro)}`;
+  const billing = itemBilling(item);
+  const presupuesto = presupuestoFromInvoiceSource(item);
+  const adelantoInfo = presupuesto && Number(presupuesto.Adelanto || 0) > 0
+    ? ` - Adelanto ${money(presupuesto.Adelanto)} - Adelanto pendiente ${money(presupuestoAdelantoPendiente(presupuesto))}`
+    : '';
+  return `Total ${money(billing.total)} - Facturado ${money(billing.facturado)} - Pendiente de facturar ${money(billing.pendienteFacturar)} - Falta cobrar ${money(billing.saldoCobro)}${adelantoInfo}`;
+}
+
+function itemBilling(item) {
+  if (!item) return { total: 0, facturado: 0, pendienteFacturar: 0, saldoCobro: 0 };
+  return item.ID?.startsWith('TRA') ? workBilling(item) : item.ID?.startsWith('PRE') ? presupuestoBilling(item) : serviceBilling(item);
+}
+
+function presupuestoFromInvoiceSource(item) {
+  if (!item) return null;
+  if (item.ID?.startsWith('PRE')) return item;
+  const presupuestoId = item.Presupuesto_ID || '';
+  return presupuestoId ? (state.presupuestos || []).find(p => p.ID === presupuestoId) || null : null;
+}
+
+function presupuestoAdelantoPendiente(presupuesto) {
+  if (!presupuesto) return 0;
+  const billing = presupuestoBilling(presupuesto);
+  const adelanto = Number(presupuesto.Adelanto || 0);
+  const adelantoFacturado = billing.facturas
+    .filter(f => String(f.Concepto || '').toLowerCase() === 'adelanto')
+    .reduce((acc, f) => acc + Number(f.Importe || 0), 0);
+  return Math.max(Math.min(adelanto - adelantoFacturado, billing.pendienteFacturar), 0);
+}
+
+function suggestedFacturaConcept(item, servicio = null) {
+  if (servicio) return servicio.Tipo || 'Visita';
+  const presupuesto = presupuestoFromInvoiceSource(item);
+  if (presupuesto && presupuestoAdelantoPendiente(presupuesto) > 0) return 'Adelanto';
+  const billing = itemBilling(item);
+  if (billing.pendienteFacturar > 0 && billing.pendienteFacturar < billing.total) return 'Saldo final';
+  if (billing.total > 0 && billing.pendienteFacturar === billing.total) return 'Factura total';
+  return 'Pago parcial';
 }
 
 function clientById(id) {
@@ -2060,6 +2104,17 @@ function usarPendienteFactura() {
   setVal('Importe', facturaPendiente(item));
 }
 
+function actualizarImporteFacturaPorConcepto() {
+  const trabajo = state.trabajos.find(t => t.ID === document.getElementById('Trabajo_ID')?.value);
+  const servicio = state.servicios.find(s => s.ID === document.getElementById('Servicio_ID')?.value);
+  const presupuesto = state.presupuestos.find(p => p.ID === document.getElementById('Presupuesto_ID')?.value);
+  const item = servicio || presupuesto || trabajo;
+  if (!item) return;
+  setVal('Importe', facturaPendiente(item));
+  const info = document.getElementById('facturaPendingInfo');
+  if (info) info.textContent = facturaPendingInfo(item);
+}
+
 function fillFacturaFromSelection() {
   const servicio = state.servicios.find(s => s.ID === document.getElementById('Servicio_ID')?.value);
   const trabajo = state.trabajos.find(t => t.ID === document.getElementById('Trabajo_ID')?.value);
@@ -2068,12 +2123,14 @@ function fillFacturaFromSelection() {
   if (servicio) {
     setVal('Cliente_ID', servicio.Cliente_ID);
     setVal('Factura_Documento', clientDocumentText(servicio.Cliente_ID));
+    setVal('Concepto', servicio.Tipo || 'Visita');
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(servicio));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(servicio);
   } else if (presupuesto) {
     setVal('Cliente_ID', presupuesto.Cliente_ID);
     setVal('Factura_Documento', clientDocumentText(presupuesto.Cliente_ID));
+    if (!document.getElementById('Concepto')?.value || document.getElementById('Concepto')?.value === 'Pago parcial') setVal('Concepto', suggestedFacturaConcept(presupuesto));
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(presupuesto));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(presupuesto);
@@ -2081,6 +2138,7 @@ function fillFacturaFromSelection() {
     setVal('Cliente_ID', trabajo.Cliente_ID);
     setVal('Factura_Documento', clientDocumentText(trabajo.Cliente_ID));
     if (trabajo.Presupuesto_ID) setVal('Presupuesto_ID', trabajo.Presupuesto_ID);
+    if (!document.getElementById('Concepto')?.value || document.getElementById('Concepto')?.value === 'Pago parcial') setVal('Concepto', suggestedFacturaConcept(trabajo));
     if (!document.getElementById('Importe')?.value) setVal('Importe', facturaPendiente(trabajo));
     const info = document.getElementById('facturaPendingInfo');
     if (info) info.textContent = facturaPendingInfo(trabajo);
@@ -2535,7 +2593,7 @@ function openModal(title, body) { document.getElementById('modalTitle').textCont
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3500); }
 function showError(err) { showToast('Error: ' + (err.message || err)); console.error(err); }
-function formatCell(col, val) { if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio' || col === 'Detalle' || col === 'Concepto') return detailPreview(val); if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
+function formatCell(col, val) { if ((col === 'PDF_URL' || col === 'Factura_URL') && val) return `<a class="link" href="${val}" target="_blank">Ver</a>`; if (col === 'Detalle_Servicio' || col === 'Detalle' || col === 'Concepto') return detailPreview(val); if (col === 'Adelanto') return Number(val || 0) > 0 ? money(val) : '-'; if (['Total', 'Importe', 'Cobrado', 'Saldo'].includes(col)) return money(val); if (col === 'Whatsapp' && val) return wa(val); if (col === 'Email' && val) return mail(val); if (col === 'Estado' || col === 'Facturado') return `<span class="badge ${val === 'Aceptado' || val === 'Finalizado' || val === 'Activo' || val === 'Si' ? 'ok' : 'warn'}">${esc(val || '')}</span>`; return esc(val || ''); }
 function detailPreview(value) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
