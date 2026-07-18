@@ -252,17 +252,17 @@ function renderDashboardReport() {
       </div>
     </div>
     <div class="tableWrap">
-      <table>
+      <table class="responsiveTable">
         <thead><tr><th>Periodo</th><th>Presupuestos en agenda</th><th>Visitas/Emergencias</th><th>Presupuestos</th><th>Ingresos</th><th>Gastos</th><th>Ganancia</th></tr></thead>
         <tbody>${rows.length ? rows.map(row => `
           <tr>
-            <td><b>${esc(row.label)}</b></td>
-            <td>${row.trabajos}</td>
-            <td>${row.servicios}</td>
-            <td>${row.presupuestos}</td>
-            <td>${money(row.ingresos)}</td>
-            <td>${money(row.gastos)}</td>
-            <td>${money(row.ganancia)}</td>
+            <td data-label="Periodo"><b>${esc(row.label)}</b></td>
+            <td data-label="Presupuestos en agenda">${row.trabajos}</td>
+            <td data-label="Visitas/Emergencias">${row.servicios}</td>
+            <td data-label="Presupuestos">${row.presupuestos}</td>
+            <td data-label="Ingresos">${money(row.ingresos)}</td>
+            <td data-label="Gastos">${money(row.gastos)}</td>
+            <td data-label="Ganancia">${money(row.ganancia)}</td>
           </tr>
         `).join('') : '<tr><td colspan="7" class="muted">Todavia no hay movimientos para reportar.</td></tr>'}</tbody>
       </table>
@@ -356,17 +356,17 @@ function renderComparison() {
       <div class="historyPanel"><h3>Periodo anterior</h3><p>${formatRange(previousRange)}</p></div>
     </div>
     <div class="tableWrap">
-      <table>
+      <table class="responsiveTable">
         <thead><tr><th>Métrica</th><th>Actual</th><th>Anterior</th><th>Diferencia</th><th>Variación</th></tr></thead>
         <tbody>${rows.map(([labelText, nowValue, prevValue, isMoney]) => {
           const diff = nowValue - prevValue;
           const pct = prevValue === 0 ? (nowValue === 0 ? 0 : 100) : (diff / prevValue) * 100;
           return `<tr>
-            <td><b>${labelText}</b></td>
-            <td>${isMoney ? money(nowValue) : nowValue}</td>
-            <td>${isMoney ? money(prevValue) : prevValue}</td>
-            <td class="${diff >= 0 ? 'positive' : 'negative'}">${isMoney ? money(diff) : diff}</td>
-            <td class="${diff >= 0 ? 'positive' : 'negative'}">${pct.toFixed(1)}%</td>
+            <td data-label="Metrica"><b>${labelText}</b></td>
+            <td data-label="Actual">${isMoney ? money(nowValue) : nowValue}</td>
+            <td data-label="Anterior">${isMoney ? money(prevValue) : prevValue}</td>
+            <td data-label="Diferencia" class="${diff >= 0 ? 'positive' : 'negative'}">${isMoney ? money(diff) : diff}</td>
+            <td data-label="Variacion" class="${diff >= 0 ? 'positive' : 'negative'}">${pct.toFixed(1)}%</td>
           </tr>`;
         }).join('')}</tbody>
       </table>

@@ -187,46 +187,57 @@ td.actionsCell{min-width:210px}
 }
 
 @media(max-width:760px){
-  body{font-size:13px}
-  .sidebar{position:sticky;top:0;z-index:30;width:100%;height:auto;max-height:116px;padding:8px;background:#101827;display:block;white-space:nowrap;overflow-x:auto;overflow-y:hidden;box-shadow:0 10px 30px rgba(15,23,42,.18)}
-  .main{margin-left:0;padding:12px}
-  .brand{display:inline-flex;vertical-align:top;align-items:center;gap:8px;margin:0 8px 0 0;padding:0 10px 0 0;border-bottom:0;border-right:1px solid rgba(148,163,184,.2)}
-  .brand img{width:34px;height:34px;max-height:34px;margin:0;border-radius:8px}
-  .brand b{font-size:12px}
-  .brand span{font-size:8px;margin-top:2px}
-  .navMenu{display:inline-flex;vertical-align:top;gap:8px;overflow:visible;padding:0;max-width:none}
-  .navGroup{display:inline-flex;align-items:center;gap:4px;border-bottom:0;padding:0}
+  body{font-size:13px;padding-bottom:74px}
+  .sidebar{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:40;width:100%;height:64px;max-height:none;padding:7px 8px 8px;background:#101827;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow-x:auto;overflow-y:hidden;box-shadow:0 -12px 30px rgba(15,23,42,.22)}
+  .main{margin-left:0;padding:10px 10px 0}
+  .brand{display:none}
+  .navMenu{display:flex;align-items:center;gap:5px;overflow:visible;padding:0;max-width:none;flex:1}
+  .navGroup{display:flex;align-items:center;gap:5px;border-bottom:0;padding:0}
   .navGroupTitle{display:none}
-  .sidebar .nav,.logoutBtn{display:inline-flex;width:auto;vertical-align:top;margin:0 2px 5px 0;padding:7px 9px}
-  .logoutBtn{margin-left:4px}
+  .sidebar .nav,.logoutBtn{display:inline-flex;align-items:center;justify-content:center;width:auto;vertical-align:top;margin:0;padding:8px 9px;min-height:42px;border-radius:12px;font-size:10px;max-width:92px;white-space:normal;text-align:center}
+  .logoutBtn{margin-left:2px;flex:0 0 auto}
   .sidebar::-webkit-scrollbar{height:0}
   .topbar{display:block;position:static;margin:0 0 12px;padding:0;background:transparent;border-bottom:0;backdrop-filter:none}
-  h1{font-size:24px}
-  .topbar p{font-size:12px}
-  .searchBox{width:100%;min-width:0;margin-top:12px}
+  h1{font-size:22px;line-height:1.1}
+  .topbar p{font-size:11px;margin-top:4px}
+  .searchBox{width:100%;min-width:0;margin-top:10px}
+  .searchBox input{padding:10px 12px;border-radius:12px}
+  .searchResults{top:46px;max-height:320px}
   .sectionHead{align-items:flex-start;flex-direction:column}
   .sectionHead button{align-self:flex-start}
+  .sectionHead h2{font-size:18px}
+  .hint{font-size:12px;line-height:1.35;padding:9px 10px}
   .dashboardToolbar,.clientToolbar,.agendaToolbar,.billingPanel,.contactHero{display:block}
+  .dashboardToolbar,.reportPanel,.clientCard,.adminCard,.contactHero,.contactSection,.billingPanel,.historialBox{padding:10px}
+  .dateFilters,.reportActions,.agendaControls{gap:7px}
+  .dateFilters label,.dateFilters input,.reportActions select,.reportActions input,.agendaControls select{width:100%}
+  .dateFilters button,.reportActions button,.agendaControls button{flex:1 1 120px}
   .invoiceHub .billingList{justify-content:flex-start;margin-top:10px}
   .invoiceHub .billingList button{max-width:none;width:100%}
   .dashboardKpis,.portfolioStrip,.clientGrid,.adminGrid,.adminContactGrid,.contactsLayout,.contactCards,.unitContactGrid,.contactRoles,.historyGrid,.compareGrid{grid-template-columns:1fr}
+  .kpiCard .value,.card .value{font-size:20px}
+  .portfolioStrip{gap:7px}
+  .miniStat{padding:8px 9px}
   .contactsLayout{display:block}
   .contactSide{margin-bottom:12px}
   .contactClientList{max-height:260px}
+  .contactHero{align-items:flex-start}
   .adminCardHead{align-items:center}
   .clientToolbar select{width:100%;margin-top:8px}
   .adminSummary,.clientSummary{gap:7px}
   .adminSummary span,.clientSummary span{font-size:12px;padding:7px 10px}
   .tableWrap{border:0;background:transparent;box-shadow:none;overflow:visible}
-  table.responsiveTable,table.responsiveTable thead,table.responsiveTable tbody,table.responsiveTable tr,table.responsiveTable td{display:block;min-width:0;width:100%}
+  table.responsiveTable,table.responsiveTable thead,table.responsiveTable tbody,table.responsiveTable tr,table.responsiveTable td{display:block!important;min-width:0!important;width:100%!important}
   table.responsiveTable thead{display:none}
-  table.responsiveTable tr{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;padding:8px;box-shadow:var(--shadow)}
-  table.responsiveTable td{border:0;padding:8px 6px}
-  table.responsiveTable td::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:10px;text-transform:uppercase;font-weight:900}
+  table.responsiveTable tr{background:#fff;border:1px solid var(--line);border-radius:13px;margin-bottom:9px;padding:7px;box-shadow:var(--shadow)}
+  table.responsiveTable td{border:0;padding:7px 5px;font-size:12px;overflow-wrap:anywhere}
+  table.responsiveTable td::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:9px;text-transform:uppercase;font-weight:900}
   table.responsiveTable td.actionsCell::before{display:none}
+  table.responsiveTable td:empty{display:none!important}
+  .invoiceTable{min-width:0}
   .tableActions{max-width:none}
   .rowMenu{display:block}
-  .rowMenu summary{width:100%;justify-content:space-between}
+  .rowMenu summary{width:100%;justify-content:space-between;min-height:32px;padding:7px 9px;font-size:11px}
   .rowMenuPanel{position:static;margin-top:7px;box-shadow:none;min-width:0;background:#f8fafc}
   .rowMenuPanel button,.rowMenuPanel select{text-align:center}
   .detailDrop{max-width:none}
@@ -235,8 +246,14 @@ td.actionsCell{min-width:210px}
   .dayCol,.monthCol{min-height:0}
   .agendaControls{justify-content:flex-start;margin-top:10px}
   .formGrid{grid-template-columns:1fr;padding:14px}
-  .modalBox{width:96vw;max-height:94vh;border-radius:16px}
+  .field input,.field select,.field textarea{font-size:16px}
+  .modal{align-items:flex-start;padding:8px 0 74px}
+  .modalBox{width:96vw;max-height:calc(100dvh - 88px);border-radius:14px}
   .modalHeader{padding:12px 14px}
-  .modalActions{justify-content:flex-start;padding:0 14px 14px}
+  .modalHeader h2{font-size:18px}
+  .modalActions{justify-content:flex-start;padding:0 14px 14px;position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line)}
+  .modalActions button{flex:1 1 auto}
+  button,.primaryBtn,.secondaryBtn,.dangerBtn,.sentBtn{font-size:11px;padding:7px 9px;min-height:32px;border-radius:9px}
+  .toast{left:10px;right:10px;bottom:76px;text-align:center}
   .loadingBox{left:14px;right:14px;bottom:14px;min-width:0}
 }
