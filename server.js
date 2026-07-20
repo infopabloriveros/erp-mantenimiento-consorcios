@@ -956,6 +956,13 @@ function addPdfField(doc, label, value, x, y, width) {
   doc.fontSize(9).fillColor('#111827').font('Helvetica').text(String(value || '-'), x, y + 11, { width });
 }
 
+function splitCompanyName(name) {
+  const value = String(name || 'Pablo Gonzalez Construcciones').trim();
+  const parts = value.split(/\s+-\s+/);
+  if (parts.length < 2) return { main: value, secondary: '' };
+  return { main: parts[0].trim(), secondary: parts.slice(1).join(' - ').trim() };
+}
+
 async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
   const logoImage = await pdfImageSource(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
   return new Promise(resolve => {
@@ -972,15 +979,21 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       const contentWidth = pageWidth - 84;
       const logoSize = 86;
       const companyWidth = logoImage ? contentWidth - logoSize - 28 : contentWidth;
-      const companyName = String(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones');
-      const titleSize = companyName.length > 38 ? 18 : 22;
+      const company = splitCompanyName(cfg.Empresa_Nombre);
+      const titleSize = company.main.length > 32 ? 20 : 24;
 
       const headerTop = 42;
       doc.font('Helvetica-Bold').fontSize(titleSize);
-      const titleHeight = doc.heightOfString(companyName, { width: companyWidth, lineGap: 0 });
-      doc.fillColor('#0f172a').text(companyName, 42, headerTop, { width: companyWidth, lineGap: 0 });
+      const titleHeight = doc.heightOfString(company.main, { width: companyWidth, lineGap: 0 });
+      doc.fillColor('#0f172a').text(company.main, 42, headerTop, { width: companyWidth, lineGap: 0 });
+      let nameBottom = headerTop + titleHeight;
+      if (company.secondary) {
+        const secondaryY = nameBottom + 5;
+        doc.font('Helvetica').fontSize(13).fillColor('#475569').text(company.secondary, 42, secondaryY, { width: companyWidth });
+        nameBottom = secondaryY + doc.heightOfString(company.secondary, { width: companyWidth });
+      }
       const descText = String(cfg.Empresa_Descripcion || '');
-      const descY = headerTop + titleHeight + 10;
+      const descY = nameBottom + 12;
       doc.font('Helvetica').fontSize(9);
       const descHeight = Math.min(62, doc.heightOfString(descText, { width: companyWidth, lineGap: 2 }));
       doc.fillColor('#475569').text(descText, 42, descY, { width: companyWidth, height: descHeight, lineGap: 2 });
@@ -1052,11 +1065,12 @@ async function createQuoteHtml(presupuesto, cfg) {
   ensureDirs();
   const logoSrc = imageToDataUri(cfg.Empresa_Logo);
   const saldoPresupuesto = Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0);
+  const company = splitCompanyName(cfg.Empresa_Nombre);
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
   <style>
     body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:16px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
     .logo{max-width:150px;max-height:80px;object-fit:contain}.company{max-width:620px}
-    h1{margin:0;font-size:28px}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:10px;white-space:pre-wrap}.contact{font-size:11px;color:#374151;margin-top:8px}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
+    h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:10px;white-space:pre-wrap}.contact{font-size:11px;color:#374151;margin-top:8px}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:bold}.val{font-size:13px;margin-top:2px}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#111827;color:white;font-size:11px;text-align:left;padding:9px}td{border-bottom:1px solid #e5e7eb;padding:9px;font-size:12px;vertical-align:top}.right{text-align:right}
     .service-detail{white-space:pre-wrap;line-height:1.5;font-size:13px}
@@ -1066,7 +1080,8 @@ async function createQuoteHtml(presupuesto, cfg) {
     <button onclick="window.print()">Imprimir / guardar PDF</button>
     <div class="top">
       <div class="company">
-        <h1>${esc(cfg.Empresa_Nombre)}</h1>
+        <h1>${esc(company.main)}</h1>
+        ${company.secondary ? `<div class="company-person">${esc(company.secondary)}</div>` : ''}
         <div class="intro">${esc(cfg.Empresa_Descripcion)}</div>
         <div class="contact">${[cfg.Empresa_Telefono && 'Tel: ' + cfg.Empresa_Telefono, cfg.Empresa_Whatsapp && 'WhatsApp: ' + cfg.Empresa_Whatsapp, cfg.Empresa_Email && 'Email: ' + cfg.Empresa_Email, cfg.Empresa_Direccion && 'Direccion: ' + cfg.Empresa_Direccion].filter(Boolean).map(esc).join(' - ')}</div>
       </div>
