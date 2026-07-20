@@ -963,6 +963,15 @@ function splitCompanyName(name) {
   return { main: parts[0].trim(), secondary: parts.slice(1).join(' - ').trim() };
 }
 
+function companyContactItems(cfg) {
+  return [
+    ['Tel', cfg.Empresa_Telefono],
+    ['WhatsApp', cfg.Empresa_Whatsapp],
+    ['Email', cfg.Empresa_Email],
+    ['Direccion', cfg.Empresa_Direccion]
+  ].filter(([, value]) => value);
+}
+
 async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
   const logoImage = await pdfImageSource(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
   return new Promise(resolve => {
@@ -997,19 +1006,18 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       doc.font('Helvetica').fontSize(9);
       const descHeight = Math.min(62, doc.heightOfString(descText, { width: companyWidth, lineGap: 2 }));
       doc.fillColor('#475569').text(descText, 42, descY, { width: companyWidth, height: descHeight, lineGap: 2 });
-      const contactLine = [
-        cfg.Empresa_Telefono && `Tel: ${cfg.Empresa_Telefono}`,
-        cfg.Empresa_Whatsapp && `WhatsApp: ${cfg.Empresa_Whatsapp}`,
-        cfg.Empresa_Email && `Email: ${cfg.Empresa_Email}`,
-        cfg.Empresa_Direccion && `Direccion: ${cfg.Empresa_Direccion}`
-      ].filter(Boolean).join(' - ');
+      const contactItems = companyContactItems(cfg);
       const contactY = descY + descHeight + 10;
-      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, contactY, { width: companyWidth });
+      contactItems.forEach(([label, value], index) => {
+        const y = contactY + (index * 12);
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text(label, 42, y, { width: 56 });
+        doc.font('Helvetica').fontSize(8).fillColor('#334155').text(String(value), 100, y, { width: companyWidth - 58 });
+      });
       if (logoImage) {
-        try { doc.image(logoImage, pageWidth - 42 - logoSize, 42, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
+        try { doc.image(logoImage, pageWidth - 42 - logoSize, 44, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
       }
 
-      const contactHeight = doc.heightOfString(contactLine, { width: companyWidth });
+      const contactHeight = contactItems.length ? contactItems.length * 12 : 0;
       const headerLineY = Math.max(174, contactY + contactHeight + 18, logoImage ? 164 : 0);
       doc.moveTo(42, headerLineY).lineTo(pageWidth - 42, headerLineY).lineWidth(2).strokeColor('#0f172a').stroke();
       const infoY = headerLineY + 22;
@@ -1066,11 +1074,12 @@ async function createQuoteHtml(presupuesto, cfg) {
   const logoSrc = imageToDataUri(cfg.Empresa_Logo);
   const saldoPresupuesto = Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0);
   const company = splitCompanyName(cfg.Empresa_Nombre);
+  const contactItems = companyContactItems(cfg);
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
   <style>
-    body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:16px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
-    .logo{max-width:180px;max-height:112px;object-fit:contain}.company{max-width:620px}
-    h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:10px;white-space:pre-wrap}.contact{font-size:11px;color:#374151;margin-top:8px}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
+    body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:22px;display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:28px;align-items:start}
+    .logo{width:180px;max-height:112px;object-fit:contain;justify-self:end;margin-top:2px}.company{min-width:0}
+    h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:12px;white-space:pre-wrap}.contact{display:grid;gap:3px;font-size:11px;color:#374151;margin-top:12px}.contact-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px}.contact-row b{color:#64748b}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:bold}.val{font-size:13px;margin-top:2px}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#111827;color:white;font-size:11px;text-align:left;padding:9px}td{border-bottom:1px solid #e5e7eb;padding:9px;font-size:12px;vertical-align:top}.right{text-align:right}
     .service-detail{white-space:pre-wrap;line-height:1.5;font-size:13px}
@@ -1083,7 +1092,7 @@ async function createQuoteHtml(presupuesto, cfg) {
         <h1>${esc(company.main)}</h1>
         ${company.secondary ? `<div class="company-person">${esc(company.secondary)}</div>` : ''}
         <div class="intro">${esc(cfg.Empresa_Descripcion)}</div>
-        <div class="contact">${[cfg.Empresa_Telefono && 'Tel: ' + cfg.Empresa_Telefono, cfg.Empresa_Whatsapp && 'WhatsApp: ' + cfg.Empresa_Whatsapp, cfg.Empresa_Email && 'Email: ' + cfg.Empresa_Email, cfg.Empresa_Direccion && 'Direccion: ' + cfg.Empresa_Direccion].filter(Boolean).map(esc).join(' - ')}</div>
+        <div class="contact">${contactItems.map(([label, value]) => `<div class="contact-row"><b>${esc(label)}</b><span>${esc(value)}</span></div>`).join('')}</div>
       </div>
       ${logoSrc ? `<img class="logo" src="${esc(logoSrc)}" alt="Logo">` : ''}
     </div>
