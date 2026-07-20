@@ -2524,7 +2524,7 @@ function compressProfileImage(file) {
         canvas.height = Math.max(1, Math.round(img.height * scale));
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.86));
+        resolve(canvas.toDataURL('image/png'));
       };
       img.src = reader.result;
     };

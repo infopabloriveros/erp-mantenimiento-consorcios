@@ -932,8 +932,8 @@ function resolveLocalAsset(src) {
 async function pdfImageSource(src) {
   if (!src) return '';
   if (/^data:/i.test(src)) {
-    const match = String(src).match(/^data:image\/(?:png|jpe?g);base64,(.+)$/i);
-    return match ? Buffer.from(match[1], 'base64') : '';
+    const match = String(src).match(/^data:image\/[^;]+;base64,(.+)$/i);
+    return match ? Buffer.from(match[1].replace(/\s/g, ''), 'base64') : '';
   }
   if (/^https?:\/\//i.test(src)) {
     try {
@@ -975,22 +975,29 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       const companyName = String(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones');
       const titleSize = companyName.length > 38 ? 18 : 22;
 
-      doc.font('Helvetica-Bold').fontSize(titleSize).fillColor('#0f172a').text(companyName, 42, 42, { width: companyWidth });
-      const titleBottom = doc.y;
-      doc.font('Helvetica').fontSize(9).fillColor('#475569').text(String(cfg.Empresa_Descripcion || ''), 42, titleBottom + 8, { width: companyWidth, lineGap: 2 });
-      const descBottom = doc.y;
+      const headerTop = 42;
+      doc.font('Helvetica-Bold').fontSize(titleSize);
+      const titleHeight = doc.heightOfString(companyName, { width: companyWidth, lineGap: 0 });
+      doc.fillColor('#0f172a').text(companyName, 42, headerTop, { width: companyWidth, lineGap: 0 });
+      const descText = String(cfg.Empresa_Descripcion || '');
+      const descY = headerTop + titleHeight + 10;
+      doc.font('Helvetica').fontSize(9);
+      const descHeight = Math.min(62, doc.heightOfString(descText, { width: companyWidth, lineGap: 2 }));
+      doc.fillColor('#475569').text(descText, 42, descY, { width: companyWidth, height: descHeight, lineGap: 2 });
       const contactLine = [
         cfg.Empresa_Telefono && `Tel: ${cfg.Empresa_Telefono}`,
         cfg.Empresa_Whatsapp && `WhatsApp: ${cfg.Empresa_Whatsapp}`,
         cfg.Empresa_Email && `Email: ${cfg.Empresa_Email}`,
         cfg.Empresa_Direccion && `Direccion: ${cfg.Empresa_Direccion}`
       ].filter(Boolean).join(' - ');
-      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, descBottom + 8, { width: companyWidth });
+      const contactY = descY + descHeight + 10;
+      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, contactY, { width: companyWidth });
       if (logoImage) {
         try { doc.image(logoImage, pageWidth - 42 - logoSize, 46, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
       }
 
-      const headerLineY = Math.max(150, doc.y + 16, logoImage ? 148 : 0);
+      const contactHeight = doc.heightOfString(contactLine, { width: companyWidth });
+      const headerLineY = Math.max(160, contactY + contactHeight + 18, logoImage ? 148 : 0);
       doc.moveTo(42, headerLineY).lineTo(pageWidth - 42, headerLineY).lineWidth(2).strokeColor('#0f172a').stroke();
       const infoY = headerLineY + 22;
       addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, infoY, 120);
