@@ -977,8 +977,8 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
 
       const pageWidth = doc.page.width;
       const contentWidth = pageWidth - 84;
-      const logoSize = 86;
-      const companyWidth = logoImage ? contentWidth - logoSize - 28 : contentWidth;
+      const logoSize = 112;
+      const companyWidth = logoImage ? contentWidth - logoSize - 34 : contentWidth;
       const company = splitCompanyName(cfg.Empresa_Nombre);
       const titleSize = company.main.length > 32 ? 20 : 24;
 
@@ -1006,11 +1006,11 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       const contactY = descY + descHeight + 10;
       doc.fontSize(8).fillColor('#334155').text(contactLine, 42, contactY, { width: companyWidth });
       if (logoImage) {
-        try { doc.image(logoImage, pageWidth - 42 - logoSize, 46, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
+        try { doc.image(logoImage, pageWidth - 42 - logoSize, 42, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
       }
 
       const contactHeight = doc.heightOfString(contactLine, { width: companyWidth });
-      const headerLineY = Math.max(160, contactY + contactHeight + 18, logoImage ? 148 : 0);
+      const headerLineY = Math.max(174, contactY + contactHeight + 18, logoImage ? 164 : 0);
       doc.moveTo(42, headerLineY).lineTo(pageWidth - 42, headerLineY).lineWidth(2).strokeColor('#0f172a').stroke();
       const infoY = headerLineY + 22;
       addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, infoY, 120);
@@ -1069,7 +1069,7 @@ async function createQuoteHtml(presupuesto, cfg) {
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
   <style>
     body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:16px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
-    .logo{max-width:150px;max-height:80px;object-fit:contain}.company{max-width:620px}
+    .logo{max-width:180px;max-height:112px;object-fit:contain}.company{max-width:620px}
     h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:10px;white-space:pre-wrap}.contact{font-size:11px;color:#374151;margin-top:8px}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:bold}.val{font-size:13px;margin-top:2px}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#111827;color:white;font-size:11px;text-align:left;padding:9px}td{border-bottom:1px solid #e5e7eb;padding:9px;font-size:12px;vertical-align:top}.right{text-align:right}
