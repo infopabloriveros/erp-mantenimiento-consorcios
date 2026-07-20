@@ -832,7 +832,7 @@ async function savePresupuesto(data) {
     Observaciones: data.Observaciones || '',
     Fecha_Creacion: existing?.Fecha_Creacion || now()
   };
-  const quoteFile = await createQuoteHtml(row, cfg);
+  const quoteFile = await createQuoteHtml(presupuestoWithClientDocument(db, row), cfg);
   row.PDF_URL = quoteFile.url;
   row.Archivo_Local = quoteFile.file;
   const driveQuote = await uploadGeneratedQuoteToDrive(row, quoteFile);
@@ -972,8 +972,8 @@ function companyContactItems(cfg) {
   ].filter(([, value]) => value);
 }
 
-function locationText(direccion, localidad) {
-  const parts = [direccion, localidad].map(value => String(value || '').trim()).filter(Boolean);
+function locationText(direccion, localidad, provincia) {
+  const parts = [direccion, localidad, provincia].map(value => String(value || '').trim()).filter(Boolean);
   return [...new Set(parts)].join(' - ');
 }
 
@@ -994,7 +994,7 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       const logoSize = 132;
       const companyWidth = logoImage ? contentWidth - logoSize - 38 : contentWidth;
       const company = splitCompanyName(cfg.Empresa_Nombre);
-      const titleSize = company.main.length > 32 ? 20 : 24;
+      const titleSize = company.main.length > 32 ? 18 : 21;
 
       const headerTop = 42;
       doc.font('Helvetica-Bold').fontSize(titleSize);
@@ -1003,7 +1003,7 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       let nameBottom = headerTop + titleHeight;
       if (company.secondary) {
         const secondaryY = nameBottom + 5;
-        doc.font('Helvetica').fontSize(13).fillColor('#475569').text(company.secondary, 42, secondaryY, { width: companyWidth });
+        doc.font('Helvetica').fontSize(11).fillColor('#475569').text(company.secondary, 42, secondaryY, { width: companyWidth });
         nameBottom = secondaryY + doc.heightOfString(company.secondary, { width: companyWidth });
       }
       const descText = String(cfg.Empresa_Descripcion || '');
@@ -1084,7 +1084,7 @@ async function createQuoteHtml(presupuesto, cfg) {
   <style>
     body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:22px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:30px;align-items:start}
     .logo{width:210px;max-height:132px;object-fit:contain;justify-self:end;margin-top:0}.company{min-width:0}
-    h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:12px;white-space:pre-wrap}.contact{display:grid;gap:3px;font-size:11px;color:#374151;margin-top:12px}.contact-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px}.contact-row b{color:#64748b}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
+    h1{margin:0;font-size:24px}.company-person{font-size:13px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:12px;white-space:pre-wrap}.contact{display:grid;gap:3px;font-size:11px;color:#374151;margin-top:12px}.contact-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px}.contact-row b{color:#64748b}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:bold}.val{font-size:13px;margin-top:2px}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#111827;color:white;font-size:11px;text-align:left;padding:9px}td{border-bottom:1px solid #e5e7eb;padding:9px;font-size:12px;vertical-align:top}.right{text-align:right}
     .service-detail{white-space:pre-wrap;line-height:1.5;font-size:13px}
@@ -1655,7 +1655,7 @@ function presupuestoWithClientDocument(db, presupuesto) {
   return {
     ...presupuesto,
     Cliente_Documento: numero ? `${tipo}: ${numero}` : `${tipo}: pendiente`,
-    Ubicacion: locationText(presupuesto.Direccion || cliente?.Direccion || '', cliente?.Localidad || '')
+    Ubicacion: locationText(presupuesto.Direccion || cliente?.Direccion || '', cliente?.Localidad || '', cliente?.Provincia || '')
   };
 }
 
