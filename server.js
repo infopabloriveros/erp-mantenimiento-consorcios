@@ -929,12 +929,35 @@ function resolveLocalAsset(src) {
   return fs.existsSync(file) ? file : '';
 }
 
+async function pdfImageSource(src) {
+  if (!src) return '';
+  if (/^data:/i.test(src)) {
+    const match = String(src).match(/^data:image\/(?:png|jpe?g);base64,(.+)$/i);
+    return match ? Buffer.from(match[1], 'base64') : '';
+  }
+  if (/^https?:\/\//i.test(src)) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const response = await fetch(src, { signal: controller.signal });
+      clearTimeout(timer);
+      const type = String(response.headers.get('content-type') || '');
+      if (!response.ok || !/^image\/(png|jpe?g)/i.test(type)) return '';
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      return '';
+    }
+  }
+  return resolveLocalAsset(src);
+}
+
 function addPdfField(doc, label, value, x, y, width) {
   doc.fontSize(7).fillColor('#64748b').font('Helvetica-Bold').text(label.toUpperCase(), x, y, { width });
   doc.fontSize(9).fillColor('#111827').font('Helvetica').text(String(value || '-'), x, y + 11, { width });
 }
 
 async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
+  const logoImage = await pdfImageSource(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
   return new Promise(resolve => {
     try {
       const saldoPresupuesto = Math.max(num(presupuesto.Total) - num(presupuesto.Adelanto), 0);
@@ -947,57 +970,67 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
 
       const pageWidth = doc.page.width;
       const contentWidth = pageWidth - 84;
-      const logoFile = resolveLocalAsset(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
+      const logoSize = 86;
+      const companyWidth = logoImage ? contentWidth - logoSize - 28 : contentWidth;
+      const companyName = String(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones');
+      const titleSize = companyName.length > 38 ? 18 : 22;
 
-      doc.font('Helvetica-Bold').fontSize(22).fillColor('#0f172a').text(String(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones'), 42, 42, { width: 365 });
-      doc.font('Helvetica').fontSize(9).fillColor('#475569').text(String(cfg.Empresa_Descripcion || ''), 42, 76, { width: 335, lineGap: 2 });
+      doc.font('Helvetica-Bold').fontSize(titleSize).fillColor('#0f172a').text(companyName, 42, 42, { width: companyWidth });
+      const titleBottom = doc.y;
+      doc.font('Helvetica').fontSize(9).fillColor('#475569').text(String(cfg.Empresa_Descripcion || ''), 42, titleBottom + 8, { width: companyWidth, lineGap: 2 });
+      const descBottom = doc.y;
       const contactLine = [
         cfg.Empresa_Telefono && `Tel: ${cfg.Empresa_Telefono}`,
         cfg.Empresa_Whatsapp && `WhatsApp: ${cfg.Empresa_Whatsapp}`,
         cfg.Empresa_Email && `Email: ${cfg.Empresa_Email}`,
         cfg.Empresa_Direccion && `Direccion: ${cfg.Empresa_Direccion}`
       ].filter(Boolean).join(' - ');
-      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, 132, { width: 380 });
-      if (logoFile) {
-        try { doc.image(logoFile, pageWidth - 142, 48, { fit: [82, 82], align: 'right' }); } catch (error) {}
+      doc.fontSize(8).fillColor('#334155').text(contactLine, 42, descBottom + 8, { width: companyWidth });
+      if (logoImage) {
+        try { doc.image(logoImage, pageWidth - 42 - logoSize, 46, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
       }
 
-      doc.moveTo(42, 155).lineTo(pageWidth - 42, 155).lineWidth(2).strokeColor('#0f172a').stroke();
-      addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, 176, 120);
-      addPdfField(doc, 'Validez', `${cfg.Presupuesto_Validez_Dias || 15} dias`, 176, 176, 120);
-      addPdfField(doc, 'Cliente', presupuesto.Cliente_Nombre, 310, 176, 220);
-      addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, 220, 90);
-      addPdfField(doc, 'CUIT / DNI', presupuesto.Cliente_Documento || 'Pendiente', 142, 220, 120);
-      addPdfField(doc, 'Direccion', presupuesto.Direccion, 276, 220, 150);
-      addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 440, 220, 92);
+      const headerLineY = Math.max(150, doc.y + 16, logoImage ? 148 : 0);
+      doc.moveTo(42, headerLineY).lineTo(pageWidth - 42, headerLineY).lineWidth(2).strokeColor('#0f172a').stroke();
+      const infoY = headerLineY + 22;
+      addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, infoY, 120);
+      addPdfField(doc, 'Validez', `${cfg.Presupuesto_Validez_Dias || 15} dias`, 176, infoY, 120);
+      addPdfField(doc, 'Cliente', presupuesto.Cliente_Nombre, 310, infoY, 220);
+      addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, infoY + 44, 90);
+      addPdfField(doc, 'CUIT / DNI', presupuesto.Cliente_Documento || 'Pendiente', 142, infoY + 44, 120);
+      addPdfField(doc, 'Direccion', presupuesto.Direccion, 276, infoY + 44, 150);
+      addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 440, infoY + 44, 92);
 
-      doc.roundedRect(42, 270, contentWidth, 150, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
-      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('DETALLE DE TRABAJO', 56, 286);
-      doc.font('Helvetica').fontSize(10).fillColor('#111827').text(String(presupuesto.Detalle_Servicio || '-'), 56, 306, {
+      const detailY = infoY + 94;
+      doc.roundedRect(42, detailY, contentWidth, 150, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('DETALLE DE TRABAJO', 56, detailY + 16);
+      doc.font('Helvetica').fontSize(10).fillColor('#111827').text(String(presupuesto.Detalle_Servicio || '-'), 56, detailY + 36, {
         width: contentWidth - 28,
         height: 96,
         lineGap: 3
       });
 
       const summaryX = pageWidth - 250;
-      doc.moveTo(summaryX, 450).lineTo(pageWidth - 42, 450).lineWidth(1.5).strokeColor('#0f172a').stroke();
+      const summaryY = detailY + 180;
+      doc.moveTo(summaryX, summaryY).lineTo(pageWidth - 42, summaryY).lineWidth(1.5).strokeColor('#0f172a').stroke();
       if (num(presupuesto.Adelanto) > 0) {
-        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Total del trabajo', summaryX, 464);
-        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
-        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Adelanto recibido', summaryX, 484, { width: 120 });
-        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(`- ${money(presupuesto.Adelanto)}`, summaryX, 484, { width: 208, align: 'right' });
-        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Saldo', summaryX, 508);
-        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(saldoPresupuesto), summaryX, 508, { width: 208, align: 'right' });
+        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Total del trabajo', summaryX, summaryY + 14);
+        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(money(presupuesto.Total), summaryX, summaryY + 14, { width: 208, align: 'right' });
+        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text('Adelanto recibido', summaryX, summaryY + 34, { width: 120 });
+        doc.font('Helvetica').fontSize(9).fillColor('#475569').text(`- ${money(presupuesto.Adelanto)}`, summaryX, summaryY + 34, { width: 208, align: 'right' });
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Saldo', summaryX, summaryY + 58);
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(saldoPresupuesto), summaryX, summaryY + 58, { width: 208, align: 'right' });
       } else {
-        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Total', summaryX, 464);
-        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(presupuesto.Total), summaryX, 464, { width: 208, align: 'right' });
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text('Total', summaryX, summaryY + 14);
+        doc.font('Helvetica-Bold').fontSize(15).fillColor('#0f172a').text(money(presupuesto.Total), summaryX, summaryY + 14, { width: 208, align: 'right' });
       }
 
-      doc.roundedRect(42, 540, contentWidth, 80, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
-      addPdfField(doc, 'Forma de pago', presupuesto.Forma_Pago, 56, 556, 210);
-      addPdfField(doc, 'Condicion de pago', presupuesto.Condicion_Pago, 286, 556, 210);
-      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('OBSERVACIONES', 56, 594);
-      doc.font('Helvetica').fontSize(9).fillColor('#111827').text(String(presupuesto.Observaciones || '-'), 56, 606, { width: contentWidth - 28 });
+      const payY = summaryY + 90;
+      doc.roundedRect(42, payY, contentWidth, 80, 8).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      addPdfField(doc, 'Forma de pago', presupuesto.Forma_Pago, 56, payY + 16, 210);
+      addPdfField(doc, 'Condicion de pago', presupuesto.Condicion_Pago, 286, payY + 16, 210);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text('OBSERVACIONES', 56, payY + 54);
+      doc.font('Helvetica').fontSize(9).fillColor('#111827').text(String(presupuesto.Observaciones || '-'), 56, payY + 66, { width: contentWidth - 28 });
 
       doc.moveTo(42, 760).lineTo(pageWidth - 42, 760).lineWidth(1).strokeColor('#e2e8f0').stroke();
       doc.fontSize(7).fillColor('#64748b').text('Documento generado por ERP Mantenimiento.', 42, 772, { width: contentWidth, align: 'center' });
