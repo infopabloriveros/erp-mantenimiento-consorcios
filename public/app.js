@@ -67,6 +67,7 @@ function apiLoadingMessage(url, options = {}) {
   if (url.includes('/initial-data')) return 'Cargando datos del ERP...';
   if (url.includes('/correos')) return 'Enviando correo...';
   if (url.includes('/envios')) return 'Actualizando envio...';
+  if (url.includes('/config')) return 'Guardando perfil...';
   if (url.includes('/facturas')) return 'Guardando factura...';
   if (url.includes('/presupuestos') && method === 'POST') return 'Generando presupuesto y PDF...';
   if (method === 'DELETE') return 'Eliminando registro...';
@@ -177,6 +178,8 @@ async function loadData() {
 }
 
 function renderAll() {
+  applyProfile();
+  renderPerfil();
   renderDashboard();
   renderClientes();
   renderAdministraciones();
@@ -189,6 +192,65 @@ function renderAll() {
   renderFacturas();
   renderCorreos();
   renderGastos();
+}
+
+function applyProfile() {
+  const cfg = state.config || {};
+  const name = cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones';
+  const logo = cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png';
+  const brandLogo = document.getElementById('brandLogo');
+  const loginLogo = document.getElementById('loginLogo');
+  if (brandLogo) {
+    brandLogo.src = logo;
+    brandLogo.alt = name;
+  }
+  if (loginLogo) {
+    loginLogo.src = logo;
+    loginLogo.alt = name;
+  }
+  const parts = String(name).trim().split(/\s+/);
+  const title = parts.length > 2 ? parts.slice(0, 2).join(' ') : name;
+  const subtitle = parts.length > 2 ? parts.slice(2).join(' ') : 'Construcciones';
+  const brandName = document.getElementById('brandName');
+  const brandSubtitle = document.getElementById('brandSubtitle');
+  if (brandName) brandName.textContent = title || name;
+  if (brandSubtitle) brandSubtitle.textContent = subtitle || 'Construcciones';
+}
+
+function renderPerfil() {
+  const el = document.getElementById('perfilContent');
+  if (!el) return;
+  const cfg = state.config || {};
+  const logo = cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png';
+  el.innerHTML = `
+    <div class="profilePanel">
+      <div class="profilePreview">
+        <img id="perfilLogoPreview" src="${esc(logo)}" alt="${esc(cfg.Empresa_Nombre || 'Perfil')}">
+        <b>${esc(cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones')}</b>
+        <span>Perfil visible del ERP</span>
+      </div>
+      <div class="profileForm">
+        <div class="formGrid">
+          ${field('Empresa_Nombre', 'text', null, 'full', cfg.Empresa_Nombre || 'Pablo Gonzalez Construcciones')}
+          <div class="field full">
+            <label>Foto / logo desde archivo</label>
+            <input id="Perfil_Logo_File" type="file" accept="image/*" onchange="previewPerfilFile(this)">
+            <small>Recomendado: imagen cuadrada. Se optimiza antes de guardar.</small>
+          </div>
+          <div class="field full">
+            <label>Foto / logo por URL</label>
+            <input id="Empresa_Logo" data-name="Empresa_Logo" value="${esc(logo)}" oninput="previewPerfilLogo(this.value)" placeholder="https://... o /assets/...">
+          </div>
+          ${field('Empresa_Descripcion', 'textarea', null, 'full', cfg.Empresa_Descripcion || '')}
+          ${field('Empresa_Telefono', 'text', null, '', cfg.Empresa_Telefono || '')}
+          ${field('Empresa_Whatsapp', 'text', null, '', cfg.Empresa_Whatsapp || '')}
+          ${field('Empresa_Email', 'email', null, '', cfg.Empresa_Email || '')}
+          ${field('Empresa_Direccion', 'text', null, '', cfg.Empresa_Direccion || '')}
+          ${field('Presupuesto_Validez_Dias', 'number', null, '', cfg.Presupuesto_Validez_Dias || '15')}
+        </div>
+        <div class="profileActions"><button onclick="savePerfil()">Guardar perfil</button></div>
+      </div>
+    </div>`;
 }
 
 function renderDashboard() {
@@ -2445,6 +2507,60 @@ function readFileAsDataUrl(file) {
     reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
     reader.readAsDataURL(file);
   });
+}
+
+function compressProfileImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('La imagen seleccionada no es valida.'));
+      img.onload = () => {
+        const max = 640;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function previewPerfilFile(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const dataUrl = await compressProfileImage(file);
+    setVal('Empresa_Logo', dataUrl);
+    previewPerfilLogo(dataUrl);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function previewPerfilLogo(value) {
+  const preview = document.getElementById('perfilLogoPreview');
+  if (preview && value) preview.src = value;
+}
+
+async function savePerfil() {
+  const data = {};
+  document.querySelectorAll('#perfilContent [data-name]').forEach(el => data[el.dataset.name] = el.value);
+  try {
+    const config = await api('/api/config', { method: 'POST', body: JSON.stringify(data) });
+    state.config = config;
+    applyProfile();
+    renderPerfil();
+    showToast('Perfil actualizado.');
+  } catch (error) {
+    showError(error);
+  }
 }
 
 function uploadFile(trabajoId) {

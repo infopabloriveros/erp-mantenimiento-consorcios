@@ -10,7 +10,7 @@
 <body class="auth-locked">
   <section id="loginScreen" class="loginScreen">
     <form id="loginForm" class="loginBox">
-      <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
+      <img id="loginLogo" src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
       <h1>Acceso al ERP</h1>
       <p>Ingresa con tu usuario administrador para gestionar clientes, presupuestos, agenda y facturas.</p>
       <label>Usuario
@@ -26,10 +26,10 @@
 
   <aside class="sidebar">
     <div class="brand">
-      <img src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
+      <img id="brandLogo" src="/assets/pablo-gonzalez-logo.png" alt="Pablo Gonzalez Construcciones">
       <div>
-        <b>Pablo Gonzalez</b>
-        <span>Construcciones</span>
+        <b id="brandName">Pablo Gonzalez</b>
+        <span id="brandSubtitle">Construcciones</span>
       </div>
     </div>
     <nav class="navMenu" aria-label="Menu principal">
@@ -57,6 +57,7 @@
       </div>
       <div class="navGroup">
         <span class="navGroupTitle">Sistema</span>
+        <button class="nav" data-view="perfil">Perfil</button>
         <button class="nav" data-view="historial">Historial</button>
       </div>
     </nav>
@@ -68,6 +69,7 @@
         <button class="nav" data-view="servicios">Visitas / Emergencias</button>
         <button class="nav" data-view="correos">Correos</button>
         <button class="nav" data-view="gastos">Gastos</button>
+        <button class="nav" data-view="perfil">Perfil</button>
         <button class="nav" data-view="historial">Historial</button>
         <button class="mobileLogoutBtn" type="button">Salir</button>
       </div>
@@ -90,6 +92,14 @@
     <section id="dashboard" class="view active">
       <div id="dashboardCards" class="cards"></div>
       <div id="dashboardReport" class="reportPanel"></div>
+    </section>
+
+    <section id="perfil" class="view">
+      <div class="sectionHead">
+        <h2>Perfil del ERP</h2>
+      </div>
+      <div class="hint">Aca podes cambiar el nombre y la foto que se ven en el sistema, el acceso y los presupuestos.</div>
+      <div id="perfilContent"></div>
     </section>
 
     <section id="clientes" class="view">

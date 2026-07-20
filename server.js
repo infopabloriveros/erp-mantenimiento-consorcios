@@ -861,6 +861,20 @@ function upsertConfig(db, key, value) {
   else db.Config.push({ Clave: key, Valor: value || '', Descripcion: '' });
 }
 
+async function saveConfig(data) {
+  const db = await readDb();
+  const current = defaultQuoteConfig(configObject(db));
+  const allowed = Object.keys(current);
+  const next = { ...current };
+  allowed.forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(data, key)) next[key] = String(data[key] || '').trim();
+  });
+  if (!next.Empresa_Nombre) throw new Error('El nombre del perfil es obligatorio.');
+  saveQuoteConfig(db, next);
+  await writeDb(db);
+  return defaultQuoteConfig(configObject(db));
+}
+
 function findBrowserForPdf() {
   const candidates = [
     process.env.PDF_BROWSER,
@@ -1847,6 +1861,10 @@ app.post('/api/sync-from-supabase', async (req, res) => {
 
 app.get('/api/initial-data', async (req, res) => {
   try { res.json(ok(await initialData())); } catch (error) { fail(res, error); }
+});
+
+app.post('/api/config', async (req, res) => {
+  try { res.json(ok(await saveConfig(req.body))); } catch (error) { fail(res, error); }
 });
 
 app.get('/api/search', async (req, res) => {

@@ -36,6 +36,16 @@ button,.primaryBtn{background:var(--accent);color:white;border:0;border-radius:1
 .dashboardToolbar{background:white;border:1px solid var(--line);border-radius:20px;padding:18px 20px;margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;box-shadow:0 10px 30px #0000000a}.dashboardToolbar h2{margin:0 0 4px}.dashboardToolbar p{margin:0}.dateFilters{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.dateFilters label{font-size:11px;text-transform:uppercase;font-weight:900;color:var(--muted);display:grid;gap:5px}.dateFilters input{border:1px solid var(--line);border-radius:13px;padding:10px 12px;background:white}
 .dashboardKpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.kpiCard{background:white;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 10px 30px #0000000a}.kpiCard .label{font-size:12px;text-transform:uppercase;color:var(--muted);font-weight:900}.kpiCard .value{font-size:30px;font-weight:950;margin-top:8px}.variation{margin-top:8px;font-size:13px}.previous{margin-top:4px;font-size:12px;color:var(--muted)}
 .portfolioStrip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px}.miniStat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 14px}.miniStat span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:900}.miniStat b{display:block;margin-top:5px;font-size:18px}
+.profilePanel{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start}
+.profilePreview,.profileForm{background:white;border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 30px #0000000a}
+.profilePreview{padding:18px;text-align:center;position:sticky;top:88px}
+.profilePreview img{display:block;width:160px;height:160px;object-fit:cover;border-radius:22px;margin:0 auto 14px;border:1px solid var(--line);background:#f8fafc}
+.profilePreview b{display:block;font-size:20px;line-height:1.15}
+.profilePreview span{display:block;margin-top:6px;color:var(--muted);font-size:12px;font-weight:800}
+.profileForm{padding:0}
+.profileForm .formGrid{padding:18px}
+.profileActions{display:flex;justify-content:flex-end;padding:0 18px 18px}
+.field small{color:var(--muted);font-size:12px;line-height:1.35}
 .reportPanel{background:white;border:1px solid var(--line);border-radius:20px;padding:18px;margin-top:18px;box-shadow:0 10px 30px #0000000a}.reportActions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.reportActions select,.reportActions input{border:1px solid var(--line);border-radius:13px;padding:10px 12px;background:white}.compactCards{grid-template-columns:repeat(4,minmax(160px,1fr));margin-bottom:14px}.compactCards .card .value{font-size:23px}.comparePanel{margin-top:24px}.compareGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}.positive{color:var(--ok);font-weight:900}.negative{color:var(--danger);font-weight:900}
 .tableWrap{background:white;border:1px solid var(--line);border-radius:18px;overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}th{background:#f9fafb;font-size:11px;text-transform:uppercase;color:var(--muted)}tr:hover td{background:#f9fafb}.link{color:var(--accent);font-weight:800;text-decoration:none}.detailPreview{display:block;min-width:220px;max-width:360px;line-height:1.35;color:#334155}
 .badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#e5e7eb;font-size:12px;font-weight:800}.badge.ok{background:#dcfce7;color:#166534}.badge.warn{background:#fef3c7;color:#92400e}.badge.blue{background:#dbeafe;color:#1d4ed8}.inlineSelect{border:1px solid var(--line);border-radius:10px;background:white;padding:8px 10px;font-weight:800;margin:0 6px 6px 0}
@@ -230,6 +240,13 @@ td.actionsCell{min-width:210px}
   .invoiceHub .billingList{justify-content:flex-start;margin-top:10px}
   .invoiceHub .billingList button{max-width:none;width:100%}
   .dashboardKpis,.portfolioStrip,.clientGrid,.adminGrid,.adminContactGrid,.contactsLayout,.contactCards,.unitContactGrid,.contactRoles,.historyGrid,.compareGrid{grid-template-columns:1fr}
+  .profilePanel{grid-template-columns:1fr}
+  .profilePreview{position:static;padding:14px}
+  .profilePreview img{width:120px;height:120px;border-radius:18px}
+  .profilePreview b{font-size:18px}
+  .profileForm .formGrid{padding:14px}
+  .profileActions{padding:0 14px 14px}
+  .profileActions button{width:100%}
   .kpiCard .value,.card .value{font-size:20px}
   .portfolioStrip{gap:7px}
   .miniStat{padding:8px 9px}
