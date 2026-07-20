@@ -972,6 +972,11 @@ function companyContactItems(cfg) {
   ].filter(([, value]) => value);
 }
 
+function locationText(direccion, localidad) {
+  const parts = [direccion, localidad].map(value => String(value || '').trim()).filter(Boolean);
+  return [...new Set(parts)].join(' - ');
+}
+
 async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
   const logoImage = await pdfImageSource(cfg.Empresa_Logo || '/assets/pablo-gonzalez-logo.png');
   return new Promise(resolve => {
@@ -986,8 +991,8 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
 
       const pageWidth = doc.page.width;
       const contentWidth = pageWidth - 84;
-      const logoSize = 112;
-      const companyWidth = logoImage ? contentWidth - logoSize - 34 : contentWidth;
+      const logoSize = 132;
+      const companyWidth = logoImage ? contentWidth - logoSize - 38 : contentWidth;
       const company = splitCompanyName(cfg.Empresa_Nombre);
       const titleSize = company.main.length > 32 ? 20 : 24;
 
@@ -1014,11 +1019,11 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
         doc.font('Helvetica').fontSize(8).fillColor('#334155').text(String(value), 100, y, { width: companyWidth - 58 });
       });
       if (logoImage) {
-        try { doc.image(logoImage, pageWidth - 42 - logoSize, 44, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
+        try { doc.image(logoImage, pageWidth - 42 - logoSize, 40, { fit: [logoSize, logoSize], align: 'right', valign: 'center' }); } catch (error) {}
       }
 
       const contactHeight = contactItems.length ? contactItems.length * 12 : 0;
-      const headerLineY = Math.max(174, contactY + contactHeight + 18, logoImage ? 164 : 0);
+      const headerLineY = Math.max(188, contactY + contactHeight + 18, logoImage ? 180 : 0);
       doc.moveTo(42, headerLineY).lineTo(pageWidth - 42, headerLineY).lineWidth(2).strokeColor('#0f172a').stroke();
       const infoY = headerLineY + 22;
       addPdfField(doc, 'Fecha', presupuesto.Fecha, 42, infoY, 120);
@@ -1026,7 +1031,7 @@ async function renderQuotePdfNative(presupuesto, cfg, pdfFile) {
       addPdfField(doc, 'Cliente', presupuesto.Cliente_Nombre, 310, infoY, 220);
       addPdfField(doc, 'Tipo', presupuesto.Cliente_Tipo, 42, infoY + 44, 90);
       addPdfField(doc, 'CUIT / DNI', presupuesto.Cliente_Documento || 'Pendiente', 142, infoY + 44, 120);
-      addPdfField(doc, 'Direccion', presupuesto.Direccion, 276, infoY + 44, 150);
+      addPdfField(doc, 'Direccion', presupuesto.Ubicacion || presupuesto.Direccion, 276, infoY + 44, 150);
       addPdfField(doc, 'Unidad', presupuesto.Unidad_Trabajo || 'No especificada', 440, infoY + 44, 92);
 
       const detailY = infoY + 94;
@@ -1077,8 +1082,8 @@ async function createQuoteHtml(presupuesto, cfg) {
   const contactItems = companyContactItems(cfg);
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(presupuesto.ID)}</title>
   <style>
-    body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:22px;display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:28px;align-items:start}
-    .logo{width:180px;max-height:112px;object-fit:contain;justify-self:end;margin-top:2px}.company{min-width:0}
+    body{font-family:Arial,sans-serif;color:#111827;margin:34px}.top{border-bottom:3px solid #111827;padding-bottom:18px;margin-bottom:22px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:30px;align-items:start}
+    .logo{width:210px;max-height:132px;object-fit:contain;justify-self:end;margin-top:0}.company{min-width:0}
     h1{margin:0;font-size:28px}.company-person{font-size:15px;color:#475569;margin-top:4px;font-weight:400}.intro{font-size:12px;line-height:1.45;color:#374151;margin-top:12px;white-space:pre-wrap}.contact{display:grid;gap:3px;font-size:11px;color:#374151;margin-top:12px}.contact-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px}.contact-row b{color:#64748b}.box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:bold}.val{font-size:13px;margin-top:2px}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#111827;color:white;font-size:11px;text-align:left;padding:9px}td{border-bottom:1px solid #e5e7eb;padding:9px;font-size:12px;vertical-align:top}.right{text-align:right}
@@ -1097,7 +1102,7 @@ async function createQuoteHtml(presupuesto, cfg) {
       ${logoSrc ? `<img class="logo" src="${esc(logoSrc)}" alt="Logo">` : ''}
     </div>
     <div class="grid"><div class="box"><div class="label">Fecha</div><div class="val">${esc(presupuesto.Fecha)}</div></div><div class="box"><div class="label">Validez</div><div class="val">${esc(cfg.Presupuesto_Validez_Dias)} dias</div></div><div class="box"><div class="label">Cliente</div><div class="val"><b>${esc(presupuesto.Cliente_Nombre)}</b></div></div><div class="box"><div class="label">CUIT / DNI</div><div class="val">${esc(presupuesto.Cliente_Documento || 'Pendiente')}</div></div></div>
-    <div class="box"><div class="grid"><div><div class="label">Direccion</div><div class="val">${esc(presupuesto.Direccion)}</div></div><div><div class="label">Unidad</div><div class="val">${esc(presupuesto.Unidad_Trabajo || 'No especificada')}</div></div></div></div>
+    <div class="box"><div class="grid"><div><div class="label">Direccion</div><div class="val">${esc(presupuesto.Ubicacion || presupuesto.Direccion)}</div></div><div><div class="label">Unidad</div><div class="val">${esc(presupuesto.Unidad_Trabajo || 'No especificada')}</div></div></div></div>
     <div class="box"><div class="label">Detalle de trabajo</div><div class="service-detail">${esc(presupuesto.Detalle_Servicio)}</div></div>
     <div class="summary">
       ${num(presupuesto.Adelanto) > 0 ? `<div class="summary-row advance">
@@ -1649,7 +1654,8 @@ function presupuestoWithClientDocument(db, presupuesto) {
   const numero = cliente?.CUIT_DNI || presupuesto.Cliente_CUIT_DNI || '';
   return {
     ...presupuesto,
-    Cliente_Documento: numero ? `${tipo}: ${numero}` : `${tipo}: pendiente`
+    Cliente_Documento: numero ? `${tipo}: ${numero}` : `${tipo}: pendiente`,
+    Ubicacion: locationText(presupuesto.Direccion || cliente?.Direccion || '', cliente?.Localidad || '')
   };
 }
 
